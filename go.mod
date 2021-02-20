@@ -4,7 +4,7 @@ go 1.12
 
 require (
 	github.com/edsrzf/mmap-go v1.0.0
-	github.com/henrylee2cn/goutil v0.0.0-20210127050712-89660552f6f8 // indirect
+	github.com/henrylee2cn/goutil v0.0.0-20210127050712-89660552f6f8
 	github.com/kr/text v0.2.0 // indirect
 	github.com/panjf2000/ants/v2 v2.4.3
 	github.com/sirupsen/logrus v1.7.0

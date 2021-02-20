@@ -1,0 +1,8 @@
+# Created by .ignore support plugin (hsz.mobi)
+### SVN template
+.svn/
+*.iml
+.idea
+.logs/
+!/logs/
+logs
