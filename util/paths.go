@@ -1,6 +1,9 @@
 package util
 
-import "os"
+import (
+	"os"
+	"strings"
+)
 
 func PathExists(path string) (bool, error) {
 	_, err := os.Stat(path)
@@ -11,4 +14,9 @@ func PathExists(path string) (bool, error) {
 		return false, nil
 	}
 	return false, err
+}
+
+func GetFileNameByFullPath(path string) string {
+	split := strings.Split(path, "/")
+	return split[len(split)-1]
 }

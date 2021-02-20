@@ -3,23 +3,23 @@ package store
 import (
 	"github.com/edsrzf/mmap-go"
 	log "github.com/sirupsen/logrus"
+	"nqs/util"
 	"os"
 	"strconv"
 	"sync/atomic"
 )
 
 type MappedFile struct {
-	mmap mmap.MMap
-	wrotePosition int32
+	mmap            mmap.MMap
+	wrotePosition   int32
 	flushedPosition int32
 
-	fileName string
-	fileSize int32
-	fileFromOffset int64
-	file *os.File
+	fileName           string
+	fileSize           int32
+	fileFromOffset     int64
+	file               *os.File
 	firstCreateInQueue bool
 }
-
 
 func openFile(filePath string, flags int) (*os.File, error) {
 	f, err := os.OpenFile(filePath, flags, 0644)
@@ -27,26 +27,28 @@ func openFile(filePath string, flags int) (*os.File, error) {
 		log.Errorf("openFile error: %s", err.Error())
 		return nil, err
 	}
-	return f,nil
+	return f, nil
 }
 
 func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 
 	log.Infof("prepare init mapped file: %s", fileName)
-	file, err := openFile(fileName, os.O_RDWR | os.O_CREATE | os.O_TRUNC)
+	file, err := openFile(fileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC)
 	if err != nil {
 		return nil, err
 	}
 
-	mmap, err := mmap.MapRegion(file, int(fileSize), mmap.RDWR, 0,0)
+	mmap, err := mmap.MapRegion(file, int(fileSize), mmap.RDWR, 0, 0)
 	if err != nil {
 		log.Errorf("mmap error: %s", err.Error())
 		return nil, err
 	}
 
-	fileFromOffset, err := strconv.ParseInt(file.Name(), 10, 64)
+	fileShortName := util.GetFileNameByFullPath(fileName)
+	fileFromOffset, err := strconv.ParseInt(fileShortName, 10, 64)
 	if err != nil {
-		return nil,err
+		log.Errorf("ParseInt fileName error, fileName: %s ", fileShortName)
+		return nil, err
 	}
 
 	return &MappedFile{
@@ -58,19 +60,19 @@ func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 		fileFromOffset:     fileFromOffset,
 		file:               file,
 		firstCreateInQueue: false,
-	},nil
+	}, nil
 
 }
 
 func (r MappedFile) AppendMessage(msg *MessageExtBrokerInner, callback AppendMessageCallback) *AppendMessageResult {
-    return r.AppendMessageInner(msg, callback)
+	return r.AppendMessageInner(msg, callback)
 }
 
 func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback AppendMessageCallback) *AppendMessageResult {
 
 	currentPos := atomic.LoadInt32(&r.wrotePosition)
 	if currentPos < r.fileSize {
-        callback.DoAppend(r.fileFromOffset, r.fileSize - currentPos, msg)
+		callback.DoAppend(r.fileFromOffset, r.fileSize-currentPos, msg)
 	}
 
 	r.mmap[9] = '0'
@@ -80,5 +82,5 @@ func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback Appe
 }
 
 func (r MappedFile) IsFull() bool {
-	return  atomic.LoadInt32(&r.wrotePosition) == r.fileSize
+	return atomic.LoadInt32(&r.wrotePosition) == r.fileSize
 }
