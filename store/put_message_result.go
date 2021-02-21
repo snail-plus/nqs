@@ -1,7 +1,7 @@
 package store
 
-
 type PutMessageStatus int32
+
 const (
 	PutOk PutMessageStatus = 1
 	FlushDiskTimeout
@@ -9,15 +9,15 @@ const (
 	CreateMappedFileFailed
 )
 
-
 type AppendMessageResult struct {
-	WroteOffset int64
-	MsgId string
+	WroteOffset    int64
+	WroteBytes     int32
+	MsgId          string
 	StoreTimestamp int64
-	LogicsOffset int64
+	LogicsOffset   int64
 }
 
 type PutMessageResult struct {
-	PutMessageStatus PutMessageStatus
+	PutMessageStatus    PutMessageStatus
 	AppendMessageResult AppendMessageResult
 }

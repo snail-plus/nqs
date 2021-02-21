@@ -1,7 +1,9 @@
 package store
 
 import (
+	"bytes"
 	"nqs/util"
+	"strings"
 	"sync"
 )
 
@@ -40,5 +42,20 @@ func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 
 	mappedFile.AppendMessage(inner, r.appendMessageCallback)
 
+	return nil
+}
+
+type DefaultAppendMessageCallback struct {
+	msgIdMemory bytes.Buffer
+
+	msgStoreItemMemory bytes.Buffer
+	maxMessageSize     int32
+	keyBuilder         strings.Builder
+	msgIdBuilder       strings.Builder
+}
+
+func (r DefaultAppendMessageCallback) DoAppend(fileFromOffset int64, maxBlank int32, ext *MessageExtBrokerInner) *AppendMessageResult {
+	r.msgIdMemory.Write([]byte("a"))
+	r.msgIdMemory.Reset()
 	return nil
 }
