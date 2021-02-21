@@ -13,6 +13,7 @@ type MappedFile struct {
 	mmap            mmap.MMap
 	wrotePosition   int32
 	flushedPosition int32
+	storeTimestamp  int64
 
 	fileName           string
 	fileSize           int32
@@ -70,15 +71,20 @@ func (r MappedFile) AppendMessage(msg *MessageExtBrokerInner, callback AppendMes
 
 func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback AppendMessageCallback) *AppendMessageResult {
 
+	var appendMessageResult *AppendMessageResult
 	currentPos := atomic.LoadInt32(&r.wrotePosition)
 	if currentPos < r.fileSize {
-		callback.DoAppend(r.fileFromOffset, r.fileSize-currentPos, msg)
+		appendMessageResult = callback.DoAppend(r.fileFromOffset, r.fileSize-currentPos, msg)
 	}
 
+	r.wrotePosition = atomic.AddInt32(&r.wrotePosition, 1)
+	r.storeTimestamp = util.GetUnixTime()
+
 	r.mmap[9] = '0'
+
 	// 写入消息到文件
 	copy(r.mmap[4:8], []byte("a"))
-	return nil
+	return appendMessageResult
 }
 
 func (r MappedFile) IsFull() bool {
