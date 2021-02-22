@@ -55,6 +55,8 @@ type DefaultAppendMessageCallback struct {
 }
 
 func (r DefaultAppendMessageCallback) DoAppend(fileFromOffset int64, maxBlank int32, ext *MessageExtBrokerInner) *AppendMessageResult {
+	r.keyBuilder.Reset()
+	r.keyBuilder.Write([]byte("a"))
 	r.msgIdMemory.Write([]byte("a"))
 	r.msgIdMemory.Reset()
 	return nil
