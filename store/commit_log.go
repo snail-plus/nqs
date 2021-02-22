@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	log "github.com/sirupsen/logrus"
 	"nqs/util"
 	"strings"
 	"sync"
@@ -40,9 +41,12 @@ func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 		}
 	}
 
-	mappedFile.AppendMessage(inner, r.appendMessageCallback)
+	appendMessageResult := mappedFile.AppendMessage(inner, r.appendMessageCallback)
 
-	return nil
+	return &PutMessageResult{
+		PutMessageStatus:    PutOk,
+		AppendMessageResult: *appendMessageResult,
+	}
 }
 
 type DefaultAppendMessageCallback struct {
@@ -55,9 +59,8 @@ type DefaultAppendMessageCallback struct {
 }
 
 func (r DefaultAppendMessageCallback) DoAppend(fileFromOffset int64, maxBlank int32, ext *MessageExtBrokerInner) *AppendMessageResult {
-	r.keyBuilder.Reset()
-	r.keyBuilder.Write([]byte("a"))
-	r.msgIdMemory.Write([]byte("a"))
-	r.msgIdMemory.Reset()
-	return nil
+	log.Infof("fileFromOffset %d DoAppend OK", fileFromOffset)
+	return &AppendMessageResult{
+		Status: AppendOk,
+	}
 }

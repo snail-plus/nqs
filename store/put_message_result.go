@@ -10,6 +10,7 @@ const (
 )
 
 type AppendMessageResult struct {
+	Status         AppendMessageStatus
 	WroteOffset    int64
 	WroteBytes     int32
 	MsgId          string

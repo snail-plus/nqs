@@ -75,15 +75,15 @@ func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback Appe
 	currentPos := atomic.LoadInt32(&r.wrotePosition)
 	if currentPos < r.fileSize {
 		appendMessageResult = callback.DoAppend(r.fileFromOffset, r.fileSize-currentPos, msg)
+		r.wrotePosition = atomic.AddInt32(&r.wrotePosition, appendMessageResult.WroteBytes)
+		r.storeTimestamp = util.GetUnixTime()
+		return appendMessageResult
 	}
 
-	r.wrotePosition = atomic.AddInt32(&r.wrotePosition, appendMessageResult.WroteBytes)
-	r.storeTimestamp = util.GetUnixTime()
+	appendMessageResult = &AppendMessageResult{
+		Status: AppendUnknownError,
+	}
 
-	r.mmap[9] = '0'
-
-	// 写入消息到文件
-	copy(r.mmap[4:8], []byte("a"))
 	return appendMessageResult
 }
 

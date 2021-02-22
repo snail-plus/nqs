@@ -10,9 +10,8 @@ import (
 	"nqs/util"
 )
 
-
 type SendMessageProcessor struct {
-	Name string
+	Name  string
 	Store *store.DefaultMessageStore
 }
 
@@ -20,7 +19,7 @@ func (s *SendMessageProcessor) Reject() bool {
 	return false
 }
 
-func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel *channel.Channel)  {
+func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel *channel.Channel) {
 	sendMessageRequestHeader := message.SendMessageRequestHeader{}
 	err := util.MapToStruct(request.ExtFields, &sendMessageRequestHeader)
 
@@ -40,7 +39,8 @@ func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	inner.Body = request.Body
 
 	putResult := s.Store.PutMessages(inner)
-    s.handlePutMessageResult(putResult, response, channel)
+
+	s.handlePutMessageResult(putResult, response, channel)
 
 }
 
@@ -53,7 +53,7 @@ func (s *SendMessageProcessor) handlePutMessageResult(putResult *store.PutMessag
 		responseHeader := message.SendMessageResponseHeader{QueueOffset: offset, MsgId: ""}
 		response.CustomHeader = responseHeader
 		response.Code = code.Success
-	}else {
+	} else {
 		response.Code = code.SystemError
 	}
 
