@@ -56,6 +56,7 @@ func (r MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate
 		}
 
 		r.mappedFiles.PushBack(mappedFile)
+		return mappedFile
 	}
 
 	return file

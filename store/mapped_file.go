@@ -74,7 +74,7 @@ func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback Appe
 	var appendMessageResult *AppendMessageResult
 	currentPos := atomic.LoadInt32(&r.wrotePosition)
 	if currentPos < r.fileSize {
-		appendMessageResult = callback.DoAppend(r.fileFromOffset, r.fileSize-currentPos, msg)
+		appendMessageResult = callback.DoAppend(r.mmap, currentPos, r.fileFromOffset, r.fileSize-currentPos, msg)
 		r.wrotePosition = atomic.AddInt32(&r.wrotePosition, appendMessageResult.WroteBytes)
 		r.storeTimestamp = util.GetUnixTime()
 		return appendMessageResult
