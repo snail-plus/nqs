@@ -30,6 +30,12 @@ func NewCommitLog(store MessageStore) CommitLog {
 	return c
 }
 
+func (r CommitLog) Start() {
+	// TODO 启动定时刷磁盘
+	service := FlushRealTimeService{}
+	service.Start()
+}
+
 func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 	r.putMessageLock.Lock()
 	defer r.putMessageLock.Unlock()
@@ -80,6 +86,8 @@ func (r DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset 
 
 	// totalSize
 	msgStoreItemMemory.Write(util.Int32ToBytes(msgLength))
+	msgStoreItemMemory.Write(topicData)
+	msgStoreItemMemory.Write(ext.Body)
 
 	copy(fileMap[currentOffset+1:], msgStoreItemMemory.Bytes())
 

@@ -28,6 +28,10 @@ func NewMappedFileQueue() *MappedFileQueue {
 	}
 }
 
+func (r MappedFileQueue) Flush() {
+	r.GetLastMappedFile().mmap.Flush()
+}
+
 func (r MappedFileQueue) GetLastMappedFile() *MappedFile {
 	files := r.mappedFiles
 	if files.Len() == 0 {
