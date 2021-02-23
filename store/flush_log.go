@@ -11,8 +11,9 @@ type FlushCommitLogService interface {
 }
 
 type FlushRealTimeService struct {
-	stopChan chan struct{}
-	c        CommitLog
+	stopChan   chan struct{}
+	c          CommitLog
+	printTimes int64
 }
 
 func (r FlushRealTimeService) start() {
@@ -20,11 +21,21 @@ func (r FlushRealTimeService) start() {
 
 	go func(flush FlushRealTimeService) {
 		for {
+			printFlushProgress := false
 			select {
 			case <-flush.stopChan:
 				log.Infof("收到退出信号")
 				break
 			default:
+				commitLog := flush.c
+				flushResult := commitLog.mappedFileQueue.Flush()
+
+				flush.printTimes = flush.printTimes + 1
+				printFlushProgress = (flush.printTimes % int64(100)) == 0
+				if printFlushProgress {
+					log.Infof("flushResult : %v", flushResult)
+				}
+
 				time.Sleep(1 * time.Second)
 			}
 		}
