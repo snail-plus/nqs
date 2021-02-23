@@ -9,10 +9,10 @@ import (
 
 type BrokerController struct {
 	Server *DefaultServer
-	Store *store.DefaultMessageStore
+	Store  *store.DefaultMessageStore
 }
 
-func Initialize() {
+func Initialize() *BrokerController {
 	b := &BrokerController{}
 	defaultServer := &DefaultServer{
 		ChannelMap:  map[string]*net2.Channel{},
@@ -31,9 +31,11 @@ func Initialize() {
 
 	b.Server = defaultServer
 
-    defaultServer.Start(b)
+	defaultServer.Start(b)
+
+	return b
 }
 
-func Shutdown() {
-
+func (r BrokerController) Shutdown() {
+	r.Store.Shutdown()
 }

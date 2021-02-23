@@ -90,3 +90,10 @@ func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback Appe
 func (r MappedFile) IsFull() bool {
 	return atomic.LoadInt32(&r.wrotePosition) == r.fileSize
 }
+
+/**
+  return The current flushed position
+*/
+func (r MappedFile) Flush() int32 {
+	return 0
+}

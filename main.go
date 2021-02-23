@@ -13,7 +13,7 @@ import (
 
 func main() {
 
-	broker.Initialize()
+	b := broker.Initialize()
 
 	server := &http.Server{
 		Addr:    ":8023",
@@ -35,8 +35,8 @@ func main() {
 
 	// graceful shutdown
 	graceful.SetLog(nlog.GetLogger())
-	graceful.SetShutdown(5* time.Second, nil, func() error {
-		broker.Shutdown()
+	graceful.SetShutdown(5*time.Second, nil, func() error {
+		b.Shutdown()
 		_ = server.Close()
 		return nil
 	})

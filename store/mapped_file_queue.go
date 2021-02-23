@@ -18,6 +18,8 @@ type MappedFileQueue struct {
 	mappedFileSize int
 	lock           sync.Mutex
 	mappedFiles    *list.List
+	flushedWhere   int64
+	storeTimestamp int64
 }
 
 func NewMappedFileQueue() *MappedFileQueue {
@@ -28,8 +30,26 @@ func NewMappedFileQueue() *MappedFileQueue {
 	}
 }
 
-func (r MappedFileQueue) Flush() {
-	r.GetLastMappedFile().mmap.Flush()
+func (r MappedFileQueue) Flush() bool {
+	result := true
+	mappedFile := r.findMappedFileByOffset(r.flushedWhere, r.flushedWhere == 0)
+	if mappedFile == nil {
+		return result
+	}
+
+	tmpTimeStamp := mappedFile.storeTimestamp
+	flushedPosition := mappedFile.Flush()
+	where := mappedFile.fileFromOffset + int64(flushedPosition)
+	result = where == r.flushedWhere
+
+	r.flushedWhere = where
+	r.storeTimestamp = tmpTimeStamp
+
+	return result
+}
+
+func (r MappedFileQueue) findMappedFileByOffset(offset int64, returnFirstOnNotFound bool) *MappedFile {
+	return nil
 }
 
 func (r MappedFileQueue) GetLastMappedFile() *MappedFile {

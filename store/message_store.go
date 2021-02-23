@@ -53,6 +53,8 @@ func (r *DefaultMessageStore) Start() {
 
 	r.db = fileDb
 	r.commitLog = NewCommitLog(r)
+	r.commitLog.Start()
+
 	r.recoverTopicQueueTable()
 	r.topicQueueTable = map[string]int64{}
 	r.consumeQueueTable = map[string]string{}
@@ -62,11 +64,8 @@ func (r *DefaultMessageStore) Start() {
 
 func (r *DefaultMessageStore) Shutdown() {
 	r.stop = true
-	err := r.db.Close()
-	if err != nil {
-		log.Errorf("db close error %s", err.Error())
-	}
 
+	r.commitLog.Shutdown()
 }
 
 func (r *DefaultMessageStore) PutMessages(messageExt *MessageExtBrokerInner) *PutMessageResult {

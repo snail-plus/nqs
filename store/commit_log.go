@@ -14,6 +14,7 @@ type CommitLog struct {
 	store                 MessageStore
 	mappedFileQueue       *MappedFileQueue
 	appendMessageCallback AppendMessageCallback
+	flushCommitLogService FlushCommitLogService
 }
 
 func NewCommitLog(store MessageStore) CommitLog {
@@ -27,13 +28,22 @@ func NewCommitLog(store MessageStore) CommitLog {
 		keyBuilder:         strings.Builder{},
 		msgIdBuilder:       strings.Builder{},
 	}
+
+	service := FlushRealTimeService{c: c, stopChan: make(chan struct{})}
+
+	c.flushCommitLogService = service
 	return c
 }
 
 func (r CommitLog) Start() {
 	// TODO 启动定时刷磁盘
-	service := FlushRealTimeService{}
-	service.Start()
+	r.flushCommitLogService.start()
+}
+
+func (r CommitLog) Shutdown() {
+	log.Info("Shutdown commitLog")
+	r.flushCommitLogService.shutdown()
+	// r.flushCommitLogService.shutdown()
 }
 
 func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
