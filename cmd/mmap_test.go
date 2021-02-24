@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+	"container/list"
 	"github.com/edsrzf/mmap-go"
 	"os"
 	"path/filepath"
@@ -27,10 +27,10 @@ func openFile(flags int) *os.File {
 	return f
 }
 
-func TestRead(t *testing.T)   {
+func TestRead(t *testing.T) {
 	f := openFile(os.O_RDWR)
 	defer f.Close()
-	mmap, err := mmap.MapRegion(f, 1024 * 1024 * 1024, mmap.RDWR, 0,0)
+	mmap, err := mmap.MapRegion(f, 1024*1024*1024, mmap.RDWR, 0, 0)
 	if err != nil {
 		t.Errorf("error mapping: %s", err)
 		return
@@ -57,13 +57,20 @@ func TestRead(t *testing.T)   {
 	mmap.Flush()
 }
 
-
-func TestRead2(t *testing.T)   {
-	a := []byte("abcd")
+func TestRead2(t *testing.T) {
+	/*a := []byte("abcd")
 	buffer := bytes.NewBuffer(a)
 	buffer.Reset()
 	buffer.Write([]byte("c"))
 
 	println(a)
-	println(buffer.String())
+	println(buffer.String())*/
+	files := list.New()
+	files.PushBack("a")
+	files.PushBack("b")
+
+	for item := files.Front(); item != nil; item = item.Next() {
+		println(item.Value.(string))
+	}
+
 }

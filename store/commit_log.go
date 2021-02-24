@@ -29,7 +29,7 @@ func NewCommitLog(store MessageStore) CommitLog {
 		msgIdBuilder:       strings.Builder{},
 	}
 
-	service := FlushRealTimeService{c: c, stopChan: make(chan struct{})}
+	service := FlushRealTimeService{commitLog: c, stopChan: make(chan struct{})}
 
 	c.flushCommitLogService = service
 	return c
