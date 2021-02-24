@@ -123,17 +123,6 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 func (r *DefaultMessageStore) recoverTopicQueueTable() {
 	r.topicQueueTable = map[string]int64{}
 
-	iter := r.db.NewIterator(lutil.BytesPrefix([]byte(topicOffsetPrefix)), nil)
-	defer iter.Release()
-
-	for iter.Next() {
-		key := iter.Key()
-		value := iter.Value()
-		topic := strings.TrimPrefix(string(key), topicOffsetPrefix)
-		r.topicQueueTable[topic] = util.BytesToInt64(value)
-	}
-
-	log.Infof("topicQueueTable: %v", r.topicQueueTable)
 }
 
 func (r *DefaultMessageStore) persist() {

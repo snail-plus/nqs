@@ -75,7 +75,7 @@ func (r MappedFileQueue) findMappedFileByOffset(offset int64, returnFirstOnNotFo
 	}
 
 	r.lock.RLock()
-	defer r.lock.Unlock()
+	defer r.lock.RUnlock()
 	files := r.mappedFiles
 	for item := files.Front(); item != nil; item = item.Next() {
 		tmpFile := item.Value.(*MappedFile)
@@ -93,7 +93,8 @@ func (r MappedFileQueue) findMappedFileByOffset(offset int64, returnFirstOnNotFo
 
 func (r MappedFileQueue) getMappedFileByIndex(index int) *MappedFile {
 	r.lock.RLock()
-	defer r.lock.Unlock()
+	defer r.lock.RUnlock()
+
 	if r.mappedFiles.Len() == 0 {
 		return nil
 	}
@@ -113,7 +114,7 @@ func (r MappedFileQueue) getMappedFileByIndex(index int) *MappedFile {
 
 func (r MappedFileQueue) GetLastMappedFile() *MappedFile {
 	r.lock.RLock()
-	defer r.lock.Unlock()
+	defer r.lock.RUnlock()
 
 	files := r.mappedFiles
 	if files.Len() == 0 {
@@ -125,8 +126,9 @@ func (r MappedFileQueue) GetLastMappedFile() *MappedFile {
 }
 
 func (r MappedFileQueue) GetFirstMappedFile() *MappedFile {
-	r.lock.RLock()
-	defer r.lock.Unlock()
+	lock := r.lock
+	lock.RLock()
+	defer lock.RUnlock()
 
 	files := r.mappedFiles
 	if files.Len() == 0 {
@@ -154,9 +156,10 @@ func (r MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate
 			return nil
 		}
 
-		r.lock.Lock()
+		lock := r.lock
+		lock.Lock()
 		r.mappedFiles.PushBack(mappedFile)
-		r.lock.Unlock()
+		lock.Unlock()
 		return mappedFile
 	}
 
