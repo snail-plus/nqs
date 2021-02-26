@@ -22,12 +22,12 @@ func Initialize() *BrokerController {
 	}
 
 	b.Store = &store.DefaultMessageStore{}
+
+	b.Store.Start()
 	load := b.Store.Load()
 	if !load {
 		panic("store load 失败")
 	}
-
-	b.Store.Start()
 
 	b.Server = defaultServer
 

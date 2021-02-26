@@ -9,6 +9,11 @@ import (
 	"sync"
 )
 
+const (
+	MessageMagicCode = -626843481
+	BlankMagicCode   = -875286124
+)
+
 type CommitLog struct {
 	putMessageLock        sync.RWMutex
 	store                 MessageStore
@@ -20,7 +25,7 @@ type CommitLog struct {
 func NewCommitLog(store MessageStore) CommitLog {
 	c := CommitLog{}
 	c.store = store
-	c.mappedFileQueue = NewMappedFileQueue()
+	c.mappedFileQueue = NewMappedFileQueue("commitlog")
 	c.appendMessageCallback = &DefaultAppendMessageCallback{
 		msgIdMemory:        bytes.Buffer{},
 		msgStoreItemMemory: bytes.Buffer{},
@@ -38,6 +43,10 @@ func NewCommitLog(store MessageStore) CommitLog {
 func (r CommitLog) Start() {
 	// TODO 启动定时刷磁盘
 	r.flushCommitLogService.start()
+}
+
+func (r CommitLog) Load() bool {
+	return r.mappedFileQueue.Load()
 }
 
 func (r CommitLog) Shutdown() {
@@ -90,22 +99,89 @@ func (r DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset 
 
 	topicData := []byte(ext.Topic)
 	topicLength := len(topicData)
-	bodyLength := len(ext.Body)
+	propertiesData := ext.propertiesString
+	propertiesLength := len(propertiesData)
 
-	msgLength := calMsgLength(bodyLength, topicLength)
+	var bodyLength int
+	if ext.Body == nil {
+		bodyLength = 0
+	} else {
+		bodyLength = len(ext.Body)
+	}
 
-	// totalSize
+	msgLength := calMsgLength(bodyLength, topicLength, propertiesLength)
+
+	// 1 totalSize 4
 	msgStoreItemMemory.Write(util.Int32ToBytes(msgLength))
-	msgStoreItemMemory.Write(topicData)
-	msgStoreItemMemory.Write(ext.Body)
 
-	copy(fileMap[currentOffset+1:], msgStoreItemMemory.Bytes())
+	// 2 magicCode 4
+	msgStoreItemMemory.Write(util.Int32ToBytes(MessageMagicCode))
+	// 3 bodyCrc 4
+	msgStoreItemMemory.Write(ext.GetBody())
+	// 4 queueId 4
+	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.QueueId)))
+	// 5 flag 4
+	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.Flag)))
+	// 6 queueOffset 8
+	msgStoreItemMemory.Write(util.Int64ToBytes(ext.QueueOffset))
+	// 7 physicalOffset 8
+	msgStoreItemMemory.Write(util.Int64ToBytes(fileFromOffset + int64(currentOffset)))
+	// 8 sysFlag 4
+
+	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.SysFlag)))
+	// 9 bornTimestamp 8
+	msgStoreItemMemory.Write(util.Int64ToBytes(ext.BornTimestamp))
+	// 10 bornHost 8
+	msgStoreItemMemory.Write(util.AddressToByte(ext.BornHost))
+	// 11 storeTimestamp 8
+	msgStoreItemMemory.Write(util.Int64ToBytes(ext.StoreTimestamp))
+	// 12 storeHostAddress 8
+	msgStoreItemMemory.Write(util.AddressToByte(ext.StoreHost))
+	// 13 reconsumeTimes
+
+	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.ReconsumeTimes)))
+	// 14 Prepared transaction offset
+	msgStoreItemMemory.Write(util.Int64ToBytes(ext.PreparedTransactionOffset))
+	// 15 body length 4
+	msgStoreItemMemory.Write(util.Int32ToBytes(bodyLength))
+	if bodyLength > 0 {
+		msgStoreItemMemory.Write(ext.Body)
+	}
+	// 16 topic
+	msgStoreItemMemory.Write(util.Int8ToBytes(topicLength))
+	msgStoreItemMemory.Write(topicData)
+	// 17 properties
+	msgStoreItemMemory.Write(util.Int16ToBytes(propertiesLength))
+	if propertiesLength > 0 {
+		msgStoreItemMemory.Write([]byte(propertiesData))
+	}
+
+	copy(fileMap[currentOffset:], msgStoreItemMemory.Bytes())
 
 	return &AppendMessageResult{
 		Status: AppendOk,
 	}
 }
 
-func calMsgLength(bodyLength, topicLength int) int {
-	return 4 + 4 + 8 + 4 + bodyLength + 1 + topicLength
+func calMsgLength(bodyLength, topicLength, propertiesLength int) int {
+	bornHostLength := 8
+	storeHostAddressLength := 8
+
+	return 4 /*totalSize*/ +
+		4 /*magicCode*/ +
+		4 /**bodyCrc */ +
+		4 /*queueId*/ +
+		4 /* flag*/ +
+		8 /* QUEUEOFFSET*/ +
+		8 /*PHYSICALOFFSET*/ +
+		4 /*SYSFLAG*/ +
+		8 /*BORNTIMESTAMP*/ +
+		bornHostLength /*BORNHOST*/ +
+		8 /*STORETIMESTAMP*/ +
+		storeHostAddressLength /*STOREHOSTADDRESS*/ +
+		4 /*RECONSUMETIMES*/ +
+		8 /*Prepared Transaction Offset*/ +
+		4 + bodyLength /*BODY*/ +
+		1 + topicLength /*TOPIC*/ +
+		2 + propertiesLength //propertiesLength
 }

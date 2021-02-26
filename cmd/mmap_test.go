@@ -3,6 +3,7 @@ package main
 import (
 	"container/list"
 	"github.com/edsrzf/mmap-go"
+	"nqs/util"
 	"os"
 	"path/filepath"
 	"testing"
@@ -73,4 +74,10 @@ func TestRead2(t *testing.T) {
 		println(item.Value.(string))
 	}
 
+}
+
+func TestNet(t *testing.T) {
+	toByte := util.AddressToByte("127.0.0.1:9090")
+	println(len(toByte))
+	println(util.ByteToAddress(toByte))
 }

@@ -3,6 +3,7 @@ package store
 import (
 	"container/list"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"nqs/common/nutil"
 	"nqs/util"
 	"os"
@@ -12,30 +13,60 @@ import (
 const mappedFileSize = 1024 * 1024 * 1024
 
 var pathSeparatorStr = "/"
-var storePath = util.GetWordDir() + pathSeparatorStr + "store"
+var basePath = util.GetWordDir() + pathSeparatorStr + "store"
 
 type MappedFileQueue struct {
-	mappedFileSize int
+	mappedFileSize int32
 	lock           *sync.RWMutex
 	mappedFiles    *list.List
 	flushedWhere   int64
 	storeTimestamp int64
+	storePath      string
 }
 
-func NewMappedFileQueue() *MappedFileQueue {
-	initDir()
+func NewMappedFileQueue(dirName string) *MappedFileQueue {
+	storePath := basePath + pathSeparatorStr + dirName
+	initDir(storePath)
+	log.Infof("storePath: %s", storePath)
 	return &MappedFileQueue{
 		mappedFileSize: mappedFileSize,
 		mappedFiles:    list.New(),
 		lock:           new(sync.RWMutex),
+		storePath:      storePath,
 	}
+}
+
+func (r MappedFileQueue) Load() bool {
+	path := r.storePath
+	files, err := ioutil.ReadDir(path)
+	if err != nil {
+		log.Errorf("load dir error, %s", err.Error())
+		return false
+	}
+
+	for _, onefile := range files {
+		if onefile.Size() != int64(r.mappedFileSize) {
+			log.Warnf("file: %s length not matched message store config value, please check it manually", onefile.Name())
+			return false
+		}
+
+		file, err := InitMappedFile(onefile.Name(), r.mappedFileSize)
+		if err != nil {
+			log.Warnf("InitMappedFile error: %s", err.Error())
+			return false
+		}
+
+		r.mappedFiles.PushBack(file)
+	}
+
+	return true
 }
 
 func (r MappedFileQueue) Flush() bool {
 	result := true
 	mappedFile := r.findMappedFileByOffset(r.flushedWhere, r.flushedWhere == 0)
 	if mappedFile == nil {
-		return result
+		return false
 	}
 
 	tmpTimeStamp := mappedFile.storeTimestamp
@@ -149,7 +180,7 @@ func (r MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate
 	}
 
 	if createOffset != -1 && needCreate {
-		nextFilePath := storePath + pathSeparatorStr + nutil.Offset2FileName(createOffset)
+		nextFilePath := r.storePath + pathSeparatorStr + nutil.Offset2FileName(createOffset)
 		mappedFile, err := InitMappedFile(nextFilePath, int32(r.mappedFileSize))
 		if err != nil {
 			log.Errorf("InitMappedFile error: %s", err.Error())
@@ -166,14 +197,14 @@ func (r MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate
 	return file
 }
 
-func initDir() {
-	exists, err := util.PathExists(storePath)
+func initDir(targetPath string) {
+	exists, err := util.PathExists(targetPath)
 	if err != nil {
 		panic(err)
 	}
 
 	if !exists {
-		os.MkdirAll(storePath, 0644)
-		log.Infof("initDir %s", storePath)
+		os.MkdirAll(targetPath, 0644)
+		log.Infof("initDir %s", targetPath)
 	}
 }

@@ -38,6 +38,7 @@ type DefaultMessageStore struct {
 }
 
 func (r *DefaultMessageStore) Load() bool {
+	r.commitLog.Load()
 	return true
 }
 

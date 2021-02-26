@@ -37,6 +37,8 @@ func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	inner.BrokerName = util.GetLocalAddress()
 	inner.BornTimestamp = sendMessageRequestHeader.BornTimestamp
 	inner.Body = request.Body
+	inner.BornHost = channel.Conn.RemoteAddr().String()
+	inner.StoreHost = channel.Conn.LocalAddr().String()
 
 	putResult := s.Store.PutMessages(inner)
 
