@@ -6,8 +6,6 @@ import (
 	lutil "github.com/syndtr/goleveldb/leveldb/util"
 	"nqs/common/message"
 	"nqs/util"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,6 +33,8 @@ type DefaultMessageStore struct {
 	consumeQueueTable map[string]string
 	commitLog         CommitLog
 	stop              bool
+
+	rePutMessageService RePutMessageService
 }
 
 func (r *DefaultMessageStore) Load() bool {
@@ -42,25 +42,25 @@ func (r *DefaultMessageStore) Load() bool {
 	return true
 }
 
+func NewStore() *DefaultMessageStore {
+	defaultStore := &DefaultMessageStore{}
+
+	defaultStore.commitLog = NewCommitLog(defaultStore)
+	defaultStore.topicQueueTable = map[string]int64{}
+	defaultStore.consumeQueueTable = map[string]string{}
+
+	defaultStore.rePutMessageService = RePutMessageService{}
+	return defaultStore
+}
+
 func (r *DefaultMessageStore) Start() {
-	dir, _ := filepath.Abs(filepath.Dir(os.Args[0]))
-	runPath := strings.Replace(dir, "\\", "/", -1)
-	log.Infof("runPath: %s", runPath)
 
-	fileDb, err := leveldb.OpenFile(runPath+"/db", nil)
-	if err != nil {
-		panic(err)
-	}
-
-	r.db = fileDb
-	r.commitLog = NewCommitLog(r)
 	r.commitLog.Start()
 
-	r.recoverTopicQueueTable()
-	r.topicQueueTable = map[string]int64{}
-	r.consumeQueueTable = map[string]string{}
+	r.rePutMessageService.Start()
 
-	r.persist()
+	r.recoverTopicQueueTable()
+
 }
 
 func (r *DefaultMessageStore) Shutdown() {
@@ -144,5 +144,15 @@ func (r *DefaultMessageStore) persist() {
 				index++
 			}
 		}
+	}()
+}
+
+type RePutMessageService struct {
+	RePutFromOffset int64
+}
+
+func (r RePutMessageService) Start() {
+	go func() {
+
 	}()
 }

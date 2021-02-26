@@ -3,10 +3,12 @@ package main
 import (
 	"container/list"
 	"github.com/edsrzf/mmap-go"
+	"nqs/common"
 	"nqs/util"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 var testData = []byte("0123456789ABCDEF")
@@ -76,7 +78,21 @@ func TestRead2(t *testing.T) {
 
 }
 
+type MyDaemonTask struct {
+	common.DaemonTask
+}
+
 func TestNet(t *testing.T) {
+	a := MyDaemonTask{}
+	a.Name = "test"
+	a.Run = func() {
+		time.Sleep(1)
+		println("aaa")
+	}
+	a.Start()
+
+	time.Sleep(5 * time.Second)
+
 	toByte := util.AddressToByte("127.0.0.1:9090")
 	println(len(toByte))
 	println(util.ByteToAddress(toByte))

@@ -52,6 +52,7 @@ func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 		return nil, err
 	}
 
+	log.Infof("mmap len: %d, cap: %d", len(mmap), cap(mmap))
 	return &MappedFile{
 		mmap:               mmap,
 		wrotePosition:      0,
@@ -74,7 +75,7 @@ func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback Appe
 	var appendMessageResult *AppendMessageResult
 	currentPos := atomic.LoadInt32(&r.wrotePosition)
 	if currentPos < r.fileSize {
-		appendMessageResult = callback.DoAppend(r.mmap, currentPos, r.fileFromOffset, r.fileSize-currentPos, msg)
+		appendMessageResult = callback.DoAppend(r.MappedByte(currentPos), currentPos, r.fileFromOffset, r.fileSize-currentPos, msg)
 		r.wrotePosition = atomic.AddInt32(&r.wrotePosition, appendMessageResult.WroteBytes)
 		r.storeTimestamp = util.GetUnixTime()
 		return appendMessageResult
@@ -96,4 +97,8 @@ func (r MappedFile) IsFull() bool {
 */
 func (r MappedFile) Flush() int32 {
 	return 0
+}
+
+func (r MappedFile) MappedByte(position int32) mmap.MMap {
+	return r.mmap[position:]
 }

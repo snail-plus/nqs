@@ -60,6 +60,8 @@ func (r MappedFileQueue) Load() bool {
 			return false
 		}
 
+		file.wrotePosition = r.mappedFileSize
+		file.flushedPosition = r.mappedFileSize
 		r.mappedFiles.PushBack(file)
 	}
 

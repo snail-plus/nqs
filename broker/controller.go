@@ -21,9 +21,9 @@ func Initialize() *BrokerController {
 		ResponseMap: map[int32]*remoting.ResponseFuture{},
 	}
 
-	b.Store = &store.DefaultMessageStore{}
-
+	b.Store = store.NewStore()
 	b.Store.Start()
+
 	load := b.Store.Load()
 	if !load {
 		panic("store load 失败")

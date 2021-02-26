@@ -156,7 +156,8 @@ func (r DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset 
 		msgStoreItemMemory.Write([]byte(propertiesData))
 	}
 
-	copy(fileMap[currentOffset:], msgStoreItemMemory.Bytes())
+	copyLength := copy(fileMap, msgStoreItemMemory.Bytes())
+	log.Infof("copyLength: %d", copyLength)
 
 	return &AppendMessageResult{
 		Status: AppendOk,
