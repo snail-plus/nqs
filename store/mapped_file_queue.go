@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"sync"
+	"sync/atomic"
 )
 
 const mappedFileSize = 1024 * 1024 * 1024
@@ -174,6 +175,30 @@ func (r MappedFileQueue) GetFirstMappedFile() *MappedFile {
 
 	lastFile := files.Front().Value
 	return lastFile.(*MappedFile)
+}
+
+func (r MappedFileQueue) GetMaxOffset() int64 {
+	r.lock.RLock()
+	r.lock.Unlock()
+
+	file := r.GetLastMappedFile()
+	if file == nil {
+		return 0
+	}
+	currentPos := atomic.LoadInt32(&file.wrotePosition)
+	return file.fileFromOffset + int64(currentPos)
+}
+
+func (r MappedFileQueue) GetMinOffset() int64 {
+	r.lock.RLock()
+	r.lock.Unlock()
+
+	file := r.GetFirstMappedFile()
+	if file == nil {
+		return -1
+	}
+
+	return file.fileFromOffset
 }
 
 func (r MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate bool) *MappedFile {

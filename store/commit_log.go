@@ -81,6 +81,18 @@ func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 	}
 }
 
+func (r CommitLog) GetMinOffset() int64 {
+	return r.mappedFileQueue.GetMinOffset()
+}
+
+func (r CommitLog) GetMaxOffset() int64 {
+	return r.mappedFileQueue.GetMaxOffset()
+}
+
+func (r CommitLog) GetData(offset int64) {
+
+}
+
 type DefaultAppendMessageCallback struct {
 	msgIdMemory bytes.Buffer
 

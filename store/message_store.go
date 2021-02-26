@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 	lutil "github.com/syndtr/goleveldb/leveldb/util"
+	"nqs/common"
 	"nqs/common/message"
 	"nqs/util"
 	"strconv"
@@ -49,7 +50,7 @@ func NewStore() *DefaultMessageStore {
 	defaultStore.topicQueueTable = map[string]int64{}
 	defaultStore.consumeQueueTable = map[string]string{}
 
-	defaultStore.rePutMessageService = RePutMessageService{}
+	defaultStore.rePutMessageService = RePutMessageService{commitLog: defaultStore.commitLog}
 	return defaultStore
 }
 
@@ -148,11 +149,39 @@ func (r *DefaultMessageStore) persist() {
 }
 
 type RePutMessageService struct {
+	common.DaemonTask
 	RePutFromOffset int64
+	commitLog       CommitLog
 }
 
 func (r RePutMessageService) Start() {
-	go func() {
+	r.DaemonTask.Name = "rePut"
+	r.DaemonTask.Run = func() {
+		for !r.IsStopped() {
+			time.Sleep(1 * time.Second)
+			r.doRePut()
+		}
+	}
 
-	}()
+	r.DaemonTask.Start()
+}
+
+func (r RePutMessageService) doRePut() {
+	commitLogMinOffset := r.commitLog.GetMinOffset()
+	if r.RePutFromOffset < commitLogMinOffset {
+		r.RePutFromOffset = commitLogMinOffset
+	}
+
+	for doNext := true; r.isCommitLogAvailable() && doNext; {
+
+	}
+
+}
+
+func (r RePutMessageService) isCommitLogAvailable() bool {
+	return r.RePutFromOffset < r.commitLog.GetMaxOffset()
+}
+
+func (r RePutMessageService) Shutdown() {
+	r.DaemonTask.Stop()
 }
