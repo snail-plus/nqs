@@ -7,6 +7,7 @@ import (
 	"nqs/common/nutil"
 	"nqs/util"
 	"os"
+	"sort"
 	"sync"
 )
 
@@ -44,7 +45,10 @@ func (r MappedFileQueue) Load() bool {
 		return false
 	}
 
-	for _, onefile := range files {
+	var f util.Files = files
+	sort.Sort(f)
+
+	for _, onefile := range f {
 		if onefile.Size() != int64(r.mappedFileSize) {
 			log.Warnf("file: %s length not matched message store config value, please check it manually", onefile.Name())
 			return false
