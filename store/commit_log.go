@@ -89,7 +89,7 @@ func (r CommitLog) GetMaxOffset() int64 {
 	return r.mappedFileQueue.GetMaxOffset()
 }
 
-func (r CommitLog) GetData(offset int64) {
+func (r CommitLog) GetData(offset int64, returnFirstOnNotFound bool) {
 
 }
 

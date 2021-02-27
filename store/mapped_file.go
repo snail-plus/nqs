@@ -102,3 +102,19 @@ func (r MappedFile) Flush() int32 {
 func (r MappedFile) MappedByte(position int32) mmap.MMap {
 	return r.mmap[position:]
 }
+
+func (r MappedFile) selectMappedBuffer(pos int32) *SelectMappedBufferResult {
+	readPosition := atomic.LoadInt32(&r.wrotePosition)
+
+	if pos < readPosition && pos >= 0 {
+		size := readPosition - pos
+		return &SelectMappedBufferResult{
+			startOffset: r.fileFromOffset + int64(pos),
+			mappedFile:  MappedFile{},
+			mmap:        r.mmap[pos:size],
+			size:        size,
+		}
+	}
+
+	return nil
+}

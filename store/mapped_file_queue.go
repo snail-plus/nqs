@@ -55,7 +55,7 @@ func (r MappedFileQueue) Load() bool {
 			return false
 		}
 
-		file, err := InitMappedFile(onefile.Name(), r.mappedFileSize)
+		file, err := InitMappedFile(path+"/"+onefile.Name(), r.mappedFileSize)
 		if err != nil {
 			log.Warnf("InitMappedFile error: %s", err.Error())
 			return false
@@ -179,7 +179,7 @@ func (r MappedFileQueue) GetFirstMappedFile() *MappedFile {
 
 func (r MappedFileQueue) GetMaxOffset() int64 {
 	r.lock.RLock()
-	r.lock.Unlock()
+	defer r.lock.RUnlock()
 
 	file := r.GetLastMappedFile()
 	if file == nil {
@@ -191,7 +191,7 @@ func (r MappedFileQueue) GetMaxOffset() int64 {
 
 func (r MappedFileQueue) GetMinOffset() int64 {
 	r.lock.RLock()
-	r.lock.Unlock()
+	defer r.lock.RUnlock()
 
 	file := r.GetFirstMappedFile()
 	if file == nil {
