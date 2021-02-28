@@ -33,7 +33,7 @@ type DefaultMessageStore struct {
 	// topic-offset
 	topicQueueTable map[string]int64
 	//topic-queue
-	consumeQueueTable map[string]string
+	consumeQueueTable map[string]map[int32]*ConsumeQueue
 	commitLog         CommitLog
 	stop              bool
 
@@ -52,12 +52,12 @@ func NewStore() *DefaultMessageStore {
 
 	defaultStore.commitLog = NewCommitLog(defaultStore)
 	defaultStore.topicQueueTable = map[string]int64{}
-	defaultStore.consumeQueueTable = map[string]string{}
+	defaultStore.consumeQueueTable = map[string]map[int32]*ConsumeQueue{}
 
 	defaultStore.rePutMessageService = RePutMessageService{commitLog: defaultStore.commitLog, msgStore: defaultStore}
 
 	defaultStore.dispatcherList = list.New()
-	defaultStore.dispatcherList.PushBack(CommitLogDispatcherBuildConsumeQueue{})
+	defaultStore.dispatcherList.PushBack(CommitLogDispatcherBuildConsumeQueue{store: defaultStore})
 
 	return defaultStore
 }
@@ -222,6 +222,28 @@ func (r *RePutMessageService) doRePut() {
 
 	}
 
+}
+
+func (r DefaultMessageStore) putMessagePositionInfo(request *DispatchRequest) {
+	consumeQueue := r.findConsumeQueue(request.topic, request.queueId)
+	consumeQueue.putMessagePositionInfoWrapper(request)
+}
+
+func (r *DefaultMessageStore) findConsumeQueue(topic string, queueId int32) *ConsumeQueue {
+	queueMap := r.consumeQueueTable[topic]
+	if queueMap == nil {
+		queueMap = map[int32]*ConsumeQueue{}
+		r.consumeQueueTable[topic] = queueMap
+	}
+
+	logic := queueMap[queueId]
+	if logic != nil {
+		return logic
+	}
+
+	cq := NewConsumeQueue(r, topic, queueId, BasePath+"/consumequeue")
+	queueMap[queueId] = cq
+	return cq
 }
 
 func (r RePutMessageService) isCommitLogAvailable() bool {

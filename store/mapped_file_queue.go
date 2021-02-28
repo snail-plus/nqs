@@ -15,7 +15,7 @@ import (
 const mappedFileSize = 1024 * 1024 * 1024
 
 var pathSeparatorStr = "/"
-var basePath = util.GetWordDir() + pathSeparatorStr + "store"
+var BasePath = util.GetWordDir() + pathSeparatorStr + "store"
 
 type MappedFileQueue struct {
 	mappedFileSize int32
@@ -26,15 +26,14 @@ type MappedFileQueue struct {
 	storePath      string
 }
 
-func NewMappedFileQueue(dirName string) *MappedFileQueue {
-	storePath := basePath + pathSeparatorStr + dirName
-	initDir(storePath)
-	log.Infof("storePath: %s", storePath)
+func NewMappedFileQueue(path string) *MappedFileQueue {
+	initDir(path)
+	log.Infof("storePath: %s", path)
 	return &MappedFileQueue{
 		mappedFileSize: mappedFileSize,
 		mappedFiles:    list.New(),
 		lock:           new(sync.RWMutex),
-		storePath:      storePath,
+		storePath:      path,
 	}
 }
 

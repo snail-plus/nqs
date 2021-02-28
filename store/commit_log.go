@@ -29,7 +29,7 @@ type CommitLog struct {
 func NewCommitLog(store MessageStore) CommitLog {
 	c := CommitLog{}
 	c.store = store
-	c.mappedFileQueue = NewMappedFileQueue("commitlog")
+	c.mappedFileQueue = NewMappedFileQueue(BasePath + "/commitlog")
 	c.appendMessageCallback = &DefaultAppendMessageCallback{
 		msgIdMemory:        bytes.Buffer{},
 		msgStoreItemMemory: bytes.Buffer{},
