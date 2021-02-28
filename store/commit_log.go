@@ -2,6 +2,7 @@ package store
 
 import (
 	"bytes"
+	"encoding/binary"
 	"github.com/edsrzf/mmap-go"
 	log "github.com/sirupsen/logrus"
 	"nqs/util"
@@ -52,7 +53,6 @@ func (r CommitLog) Load() bool {
 func (r CommitLog) Shutdown() {
 	log.Info("Shutdown commitLog")
 	r.flushCommitLogService.shutdown()
-	// r.flushCommitLogService.shutdown()
 }
 
 func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
@@ -89,8 +89,100 @@ func (r CommitLog) GetMaxOffset() int64 {
 	return r.mappedFileQueue.GetMaxOffset()
 }
 
-func (r CommitLog) GetData(offset int64, returnFirstOnNotFound bool) {
+func (r CommitLog) GetData(offset int64, returnFirstOnNotFound bool) *SelectMappedBufferResult {
+	mappedFile := r.mappedFileQueue.findMappedFileByOffset(offset, returnFirstOnNotFound)
+	if mappedFile == nil {
+		return nil
+	}
+	pos := offset % mappedFileSize
+	return mappedFile.selectMappedBuffer(int32(pos))
+}
 
+func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool) *DispatchRequest {
+
+	var totalSize int32
+	binary.Read(byteBuff, binary.BigEndian, &totalSize)
+
+	var magicCode int32
+	binary.Read(byteBuff, binary.BigEndian, &magicCode)
+	switch magicCode {
+	case MessageMagicCode:
+		break
+	case BlankMagicCode:
+		return &DispatchRequest{
+			msgSize: 0,
+			success: true,
+		}
+	default:
+		log.Warn("illegal magic code")
+		return &DispatchRequest{
+			msgSize: 0,
+			success: false,
+		}
+	}
+
+	var bodyCRC int32
+	binary.Read(byteBuff, binary.BigEndian, &bodyCRC)
+
+	var queueId int32
+	binary.Read(byteBuff, binary.BigEndian, &queueId)
+
+	var flag int32
+	binary.Read(byteBuff, binary.BigEndian, &flag)
+
+	var queueOffset int64
+	binary.Read(byteBuff, binary.BigEndian, &queueOffset)
+
+	var physicOffset int64
+	binary.Read(byteBuff, binary.BigEndian, &physicOffset)
+
+	var sysFlag int32
+	binary.Read(byteBuff, binary.BigEndian, &sysFlag)
+
+	var bornTimeStamp int64
+	binary.Read(byteBuff, binary.BigEndian, &bornTimeStamp)
+
+	storeHostAddress := make([]byte, 8)
+	byteBuff.Read(storeHostAddress)
+
+	bornHostAddress := make([]byte, 8)
+	byteBuff.Read(bornHostAddress)
+
+	var reconsumeTimes int32
+	binary.Read(byteBuff, binary.BigEndian, &reconsumeTimes)
+
+	var preparedTransactionOffset int64
+	binary.Read(byteBuff, binary.BigEndian, &preparedTransactionOffset)
+
+	var bodyLen int32
+	binary.Read(byteBuff, binary.BigEndian, &bodyLen)
+
+	if bodyLen > 0 {
+		var msgBody = make([]byte, bodyLen)
+		readLength, err := byteBuff.Read(msgBody)
+		if err != nil {
+			log.Error("read body error : %s", err.Error())
+			return &DispatchRequest{
+				msgSize: 0,
+				success: false,
+			}
+		}
+
+		if int(bodyLen) != readLength {
+			log.Error("msg body length: %d, read length: %s", bodyLen, readLength)
+			return &DispatchRequest{
+				msgSize: 0,
+				success: false,
+			}
+		}
+
+	}
+
+	topicLen, _ := byteBuff.ReadByte()
+	topic := make([]byte, topicLen)
+	byteBuff.Read(topic)
+
+	return nil
 }
 
 type DefaultAppendMessageCallback struct {

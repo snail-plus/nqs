@@ -1,6 +1,7 @@
 package store
 
 import (
+	"bytes"
 	"github.com/edsrzf/mmap-go"
 	log "github.com/sirupsen/logrus"
 	"nqs/util"
@@ -110,8 +111,8 @@ func (r MappedFile) selectMappedBuffer(pos int32) *SelectMappedBufferResult {
 		size := readPosition - pos
 		return &SelectMappedBufferResult{
 			startOffset: r.fileFromOffset + int64(pos),
-			mappedFile:  MappedFile{},
-			mmap:        r.mmap[pos:size],
+			mappedFile:  r,
+			byteBuffer:  bytes.NewBuffer(r.mmap[pos:size]),
 			size:        size,
 		}
 	}

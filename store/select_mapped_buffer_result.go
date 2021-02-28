@@ -1,10 +1,12 @@
 package store
 
-import "github.com/edsrzf/mmap-go"
+import (
+	"bytes"
+)
 
 type SelectMappedBufferResult struct {
 	startOffset int64
 	mappedFile  MappedFile
-	mmap        mmap.MMap
+	byteBuffer  *bytes.Buffer
 	size        int32
 }

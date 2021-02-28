@@ -173,6 +173,13 @@ func (r RePutMessageService) doRePut() {
 	}
 
 	for doNext := true; r.isCommitLogAvailable() && doNext; {
+		result := r.commitLog.GetData(r.RePutFromOffset, r.RePutFromOffset == 0)
+		if result == nil {
+			doNext = false
+			continue
+		}
+
+		r.RePutFromOffset = result.startOffset
 
 	}
 
