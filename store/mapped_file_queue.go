@@ -12,7 +12,8 @@ import (
 	"sync/atomic"
 )
 
-const mappedFileSize = 1024 * 1024 * 1024
+const commitLogFileSize = 1024 * 1024 * 1024
+const mappedFileSizeConsumeQueue = 300000 * CqStoreUnitSize
 
 var pathSeparatorStr = "/"
 var BasePath = util.GetWordDir() + pathSeparatorStr + "store"
@@ -26,11 +27,11 @@ type MappedFileQueue struct {
 	storePath      string
 }
 
-func NewMappedFileQueue(path string) *MappedFileQueue {
+func NewMappedFileQueue(path string, mappedFileSize int) *MappedFileQueue {
 	initDir(path)
 	log.Infof("storePath: %s", path)
 	return &MappedFileQueue{
-		mappedFileSize: mappedFileSize,
+		mappedFileSize: int32(mappedFileSize),
 		mappedFiles:    list.New(),
 		lock:           new(sync.RWMutex),
 		storePath:      path,
@@ -219,6 +220,10 @@ func (r MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate
 
 		lock := r.lock
 		lock.Lock()
+		if r.mappedFiles.Len() == 0 {
+			mappedFile.firstCreateInQueue = true
+		}
+
 		r.mappedFiles.PushBack(mappedFile)
 		lock.Unlock()
 		return mappedFile

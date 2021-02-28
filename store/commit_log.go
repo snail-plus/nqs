@@ -29,7 +29,7 @@ type CommitLog struct {
 func NewCommitLog(store MessageStore) CommitLog {
 	c := CommitLog{}
 	c.store = store
-	c.mappedFileQueue = NewMappedFileQueue(BasePath + "/commitlog")
+	c.mappedFileQueue = NewMappedFileQueue(BasePath+"/commitlog", commitLogFileSize)
 	c.appendMessageCallback = &DefaultAppendMessageCallback{
 		msgIdMemory:        bytes.Buffer{},
 		msgStoreItemMemory: bytes.Buffer{},
@@ -97,7 +97,7 @@ func (r CommitLog) GetData(offset int64, returnFirstOnNotFound bool) *SelectMapp
 	if mappedFile == nil {
 		return nil
 	}
-	pos := offset % mappedFileSize
+	pos := offset % commitLogFileSize
 	return mappedFile.selectMappedBuffer(int32(pos))
 }
 
@@ -223,7 +223,7 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 }
 
 func (r CommitLog) RollNextFile(offset int64) int64 {
-	return offset + mappedFileSize - offset%mappedFileSize
+	return offset + commitLogFileSize - offset%commitLogFileSize
 }
 
 type DefaultAppendMessageCallback struct {
