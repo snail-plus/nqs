@@ -135,7 +135,7 @@ func (r *MappedFile) selectMappedBuffer(pos int32) *SelectMappedBufferResult {
 		return &SelectMappedBufferResult{
 			startOffset: r.fileFromOffset + int64(pos),
 			mappedFile:  r,
-			byteBuffer:  bytes.NewBuffer(r.mmap[pos:size]),
+			byteBuffer:  bytes.NewBuffer(r.mmap[pos : pos+size]),
 			size:        size,
 		}
 	}

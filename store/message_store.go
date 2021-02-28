@@ -198,7 +198,7 @@ func (r *RePutMessageService) doRePut() {
 		}
 
 		r.RePutFromOffset = result.startOffset
-		log.Infof("result, startOffset %d, byte length: %d", result.startOffset, result.byteBuffer.Len())
+		log.Infof("result, startOffset %d, byte length: %d, size: %d", result.startOffset, result.byteBuffer.Len(), result.size)
 
 		for readSize := 0; readSize < int(result.size) && doNext; {
 			dispatchRequest := r.commitLog.CheckMessage(result.byteBuffer, false, false)
@@ -216,6 +216,7 @@ func (r *RePutMessageService) doRePut() {
 
 			r.msgStore.DoDispatch(dispatchRequest)
 			r.RePutFromOffset = r.RePutFromOffset + int64(dispatchRequest.msgSize)
+			log.Infof("RePutFromOffset %d", r.RePutFromOffset)
 			readSize += int(msgSize)
 		}
 

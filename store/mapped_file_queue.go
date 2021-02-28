@@ -69,7 +69,7 @@ func (r *MappedFileQueue) Load() bool {
 	return true
 }
 
-func (r MappedFileQueue) Flush() bool {
+func (r *MappedFileQueue) Flush() bool {
 	result := true
 	mappedFile := r.findMappedFileByOffset(r.flushedWhere, r.flushedWhere == 0)
 	if mappedFile == nil {
