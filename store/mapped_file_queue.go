@@ -38,7 +38,7 @@ func NewMappedFileQueue(dirName string) *MappedFileQueue {
 	}
 }
 
-func (r MappedFileQueue) Load() bool {
+func (r *MappedFileQueue) Load() bool {
 	path := r.storePath
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -61,8 +61,8 @@ func (r MappedFileQueue) Load() bool {
 			return false
 		}
 
-		file.wrotePosition = r.mappedFileSize
-		file.flushedPosition = r.mappedFileSize
+		file.wrotePosition = 0
+		file.flushedPosition = 0
 		r.mappedFiles.PushBack(file)
 	}
 

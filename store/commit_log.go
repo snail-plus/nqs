@@ -6,6 +6,7 @@ import (
 	"github.com/edsrzf/mmap-go"
 	log "github.com/sirupsen/logrus"
 	"nqs/util"
+	"strconv"
 	"strings"
 	"sync"
 )
@@ -14,6 +15,8 @@ const (
 	MessageMagicCode = -626843481
 	BlankMagicCode   = -875286124
 )
+
+var topicQueueTable = map[string]int64{}
 
 type CommitLog struct {
 	putMessageLock        sync.RWMutex
@@ -114,7 +117,7 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 			success: true,
 		}
 	default:
-		log.Warn("illegal magic code")
+		log.Warnf("illegal magic code: %d", magicCode)
 		return &DispatchRequest{
 			msgSize: 0,
 			success: false,
@@ -142,11 +145,14 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 	var bornTimeStamp int64
 	binary.Read(byteBuff, binary.BigEndian, &bornTimeStamp)
 
-	storeHostAddress := make([]byte, 8)
-	byteBuff.Read(storeHostAddress)
-
 	bornHostAddress := make([]byte, 8)
 	byteBuff.Read(bornHostAddress)
+
+	var storeTimestamp int64
+	binary.Read(byteBuff, binary.BigEndian, &storeTimestamp)
+
+	storeHostAddress := make([]byte, 8)
+	byteBuff.Read(storeHostAddress)
 
 	var reconsumeTimes int32
 	binary.Read(byteBuff, binary.BigEndian, &reconsumeTimes)
@@ -161,7 +167,7 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 		var msgBody = make([]byte, bodyLen)
 		readLength, err := byteBuff.Read(msgBody)
 		if err != nil {
-			log.Error("read body error : %s", err.Error())
+			log.Errorf("read body error : %s", err.Error())
 			return &DispatchRequest{
 				msgSize: 0,
 				success: false,
@@ -169,7 +175,7 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 		}
 
 		if int(bodyLen) != readLength {
-			log.Error("msg body length: %d, read length: %s", bodyLen, readLength)
+			log.Errorf("msg body length: %d, read length: %d", bodyLen, readLength)
 			return &DispatchRequest{
 				msgSize: 0,
 				success: false,
@@ -182,7 +188,42 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 	topic := make([]byte, topicLen)
 	byteBuff.Read(topic)
 
-	return nil
+	var propertiesLength int16
+	propertiesMap := map[string]string{}
+	binary.Read(byteBuff, binary.BigEndian, &propertiesLength)
+	if propertiesLength > 0 {
+		properties := make([]byte, propertiesLength)
+		byteBuff.Read(properties)
+	}
+
+	readLength := calMsgLength(int(bodyLen), int(topicLen), int(propertiesLength))
+	if int(totalSize) != readLength {
+		log.Errorf("totalSize: %d, readLength: %d, bodyLen: %d, topicLen: %d ,propertiesLength: %d", totalSize, readLength, bodyLen, topicLen, propertiesLength)
+		return &DispatchRequest{
+			msgSize: 0,
+			success: false,
+		}
+	}
+
+	return &DispatchRequest{
+		topic:                     string(topic),
+		queueId:                   queueId,
+		commitLogOffset:           physicOffset,
+		msgSize:                   totalSize,
+		tagsCode:                  0,
+		storeTimestamp:            storeTimestamp,
+		keys:                      "",
+		success:                   true,
+		uniqKey:                   "",
+		sysFlag:                   sysFlag,
+		preparedTransactionOffset: preparedTransactionOffset,
+		propertiesMap:             propertiesMap,
+	}
+
+}
+
+func (r CommitLog) RollNextFile(offset int64) int64 {
+	return offset + mappedFileSize - offset%mappedFileSize
 }
 
 type DefaultAppendMessageCallback struct {
@@ -194,12 +235,27 @@ type DefaultAppendMessageCallback struct {
 	msgIdBuilder       strings.Builder
 }
 
-func (r DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset int32, fileFromOffset int64, maxBlank int32, ext *MessageExtBrokerInner) *AppendMessageResult {
+func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset int32, fileFromOffset int64, maxBlank int32, ext *MessageExtBrokerInner) *AppendMessageResult {
 	log.Infof("fileFromOffset %d DoAppend OK", fileFromOffset)
+
+	wroteOffset := fileFromOffset + int64(currentOffset)
+
 	r.keyBuilder.Reset()
 	r.msgIdBuilder.Reset()
 	msgStoreItemMemory := r.msgStoreItemMemory
 	msgStoreItemMemory.Reset()
+
+	r.keyBuilder.WriteString(ext.Topic)
+	r.keyBuilder.WriteString("-")
+	r.keyBuilder.WriteString(strconv.Itoa(int(ext.QueueId)))
+	key := r.keyBuilder.String()
+
+	var queueOffset int64
+	if tmpQueueOffset, ok := topicQueueTable[key]; ok {
+		queueOffset = tmpQueueOffset
+	} else {
+		topicQueueTable[key] = 0
+	}
 
 	topicData := []byte(ext.Topic)
 	topicLength := len(topicData)
@@ -221,7 +277,7 @@ func (r DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset 
 	// 2 magicCode 4
 	msgStoreItemMemory.Write(util.Int32ToBytes(MessageMagicCode))
 	// 3 bodyCrc 4
-	msgStoreItemMemory.Write(ext.GetBody())
+	msgStoreItemMemory.Write(util.Int32ToBytes(0))
 	// 4 queueId 4
 	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.QueueId)))
 	// 5 flag 4
@@ -263,9 +319,15 @@ func (r DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset 
 	copyLength := copy(fileMap, msgStoreItemMemory.Bytes())
 	log.Infof("copyLength: %d", copyLength)
 
-	return &AppendMessageResult{
-		Status: AppendOk,
+	appendResult := &AppendMessageResult{
+		WroteBytes:  int32(msgLength),
+		WroteOffset: wroteOffset,
+		Status:      AppendOk,
 	}
+
+	// next offset
+	topicQueueTable[key] = queueOffset + 1
+	return appendResult
 }
 
 func calMsgLength(bodyLength, topicLength, propertiesLength int) int {

@@ -67,17 +67,18 @@ func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 
 }
 
-func (r MappedFile) AppendMessage(msg *MessageExtBrokerInner, callback AppendMessageCallback) *AppendMessageResult {
+func (r *MappedFile) AppendMessage(msg *MessageExtBrokerInner, callback AppendMessageCallback) *AppendMessageResult {
 	return r.AppendMessageInner(msg, callback)
 }
 
-func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback AppendMessageCallback) *AppendMessageResult {
+func (r *MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback AppendMessageCallback) *AppendMessageResult {
 
 	var appendMessageResult *AppendMessageResult
 	currentPos := atomic.LoadInt32(&r.wrotePosition)
 	if currentPos < r.fileSize {
 		appendMessageResult = callback.DoAppend(r.MappedByte(currentPos), currentPos, r.fileFromOffset, r.fileSize-currentPos, msg)
 		r.wrotePosition = atomic.AddInt32(&r.wrotePosition, appendMessageResult.WroteBytes)
+		log.Infof("wrotePosition %d", r.wrotePosition)
 		r.storeTimestamp = util.GetUnixTime()
 		return appendMessageResult
 	}
@@ -89,22 +90,44 @@ func (r MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback Appe
 	return appendMessageResult
 }
 
-func (r MappedFile) IsFull() bool {
+func (r *MappedFile) IsFull() bool {
 	return atomic.LoadInt32(&r.wrotePosition) == r.fileSize
 }
 
 /**
   return The current flushed position
 */
-func (r MappedFile) Flush() int32 {
-	return 0
+func (r *MappedFile) Flush() int32 {
+	value := atomic.LoadInt32(&r.wrotePosition)
+
+	if r.isAbleToFlush() {
+		err := r.mmap.Flush()
+		r.flushedPosition = value
+		if err != nil {
+			log.Errorf("mmap flush error: %d", err.Error())
+		}
+		log.Infof("flush pos is %d", value)
+		return value
+	}
+
+	return atomic.LoadInt32(&r.flushedPosition)
 }
 
-func (r MappedFile) MappedByte(position int32) mmap.MMap {
+func (r *MappedFile) isAbleToFlush() bool {
+	if r.IsFull() {
+		return true
+	}
+
+	flush := atomic.LoadInt32(&r.flushedPosition)
+	write := atomic.LoadInt32(&r.wrotePosition)
+	return write > flush
+}
+
+func (r *MappedFile) MappedByte(position int32) mmap.MMap {
 	return r.mmap[position:]
 }
 
-func (r MappedFile) selectMappedBuffer(pos int32) *SelectMappedBufferResult {
+func (r *MappedFile) selectMappedBuffer(pos int32) *SelectMappedBufferResult {
 	readPosition := atomic.LoadInt32(&r.wrotePosition)
 
 	if pos < readPosition && pos >= 0 {

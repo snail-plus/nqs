@@ -6,7 +6,7 @@ import (
 
 type SelectMappedBufferResult struct {
 	startOffset int64
-	mappedFile  MappedFile
+	mappedFile  *MappedFile
 	byteBuffer  *bytes.Buffer
 	size        int32
 }

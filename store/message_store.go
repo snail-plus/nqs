@@ -1,6 +1,7 @@
 package store
 
 import (
+	"container/list"
 	log "github.com/sirupsen/logrus"
 	"github.com/syndtr/goleveldb/leveldb"
 	lutil "github.com/syndtr/goleveldb/leveldb/util"
@@ -23,6 +24,7 @@ type MessageStore interface {
 	Shutdown()
 	PutMessages(*MessageExtBrokerInner) *PutMessageResult
 	GetMessage(group string, topic string, offset int64, maxMsgNums int32) *GetMessageResult
+	DoDispatch(request *DispatchRequest)
 }
 
 type DefaultMessageStore struct {
@@ -36,6 +38,8 @@ type DefaultMessageStore struct {
 	stop              bool
 
 	rePutMessageService RePutMessageService
+
+	dispatcherList *list.List
 }
 
 func (r *DefaultMessageStore) Load() bool {
@@ -50,7 +54,11 @@ func NewStore() *DefaultMessageStore {
 	defaultStore.topicQueueTable = map[string]int64{}
 	defaultStore.consumeQueueTable = map[string]string{}
 
-	defaultStore.rePutMessageService = RePutMessageService{commitLog: defaultStore.commitLog}
+	defaultStore.rePutMessageService = RePutMessageService{commitLog: defaultStore.commitLog, msgStore: defaultStore}
+
+	defaultStore.dispatcherList = list.New()
+	defaultStore.dispatcherList.PushBack(CommitLogDispatcherBuildConsumeQueue{})
+
 	return defaultStore
 }
 
@@ -127,6 +135,14 @@ func (r *DefaultMessageStore) recoverTopicQueueTable() {
 
 }
 
+func (r *DefaultMessageStore) DoDispatch(request *DispatchRequest) {
+	dispatcherList := r.dispatcherList
+	for item := dispatcherList.Front(); item != nil; item = item.Next() {
+		dispatcher := item.Value.(CommitLogDispatcher)
+		dispatcher.Dispatch(request)
+	}
+}
+
 func (r *DefaultMessageStore) persist() {
 	go func() {
 		var index int64 = 0
@@ -152,11 +168,13 @@ type RePutMessageService struct {
 	common.DaemonTask
 	RePutFromOffset int64
 	commitLog       CommitLog
+	msgStore        MessageStore
 }
 
 func (r RePutMessageService) Start() {
 	r.DaemonTask.Name = "rePut"
 	r.DaemonTask.Run = func() {
+		log.Infof("start rePut service")
 		for !r.IsStopped() {
 			time.Sleep(1 * time.Second)
 			r.doRePut()
@@ -166,7 +184,7 @@ func (r RePutMessageService) Start() {
 	r.DaemonTask.Start()
 }
 
-func (r RePutMessageService) doRePut() {
+func (r *RePutMessageService) doRePut() {
 	commitLogMinOffset := r.commitLog.GetMinOffset()
 	if r.RePutFromOffset < commitLogMinOffset {
 		r.RePutFromOffset = commitLogMinOffset
@@ -180,6 +198,26 @@ func (r RePutMessageService) doRePut() {
 		}
 
 		r.RePutFromOffset = result.startOffset
+		log.Infof("result, startOffset %d, byte length: %d", result.startOffset, result.byteBuffer.Len())
+
+		for readSize := 0; readSize < int(result.size) && doNext; {
+			dispatchRequest := r.commitLog.CheckMessage(result.byteBuffer, false, false)
+			msgSize := dispatchRequest.msgSize
+			if !dispatchRequest.success {
+				doNext = false
+				continue
+			}
+
+			if msgSize == 0 {
+				r.RePutFromOffset = r.commitLog.RollNextFile(r.RePutFromOffset)
+				readSize = int(result.size)
+				continue
+			}
+
+			r.msgStore.DoDispatch(dispatchRequest)
+			r.RePutFromOffset = r.RePutFromOffset + int64(dispatchRequest.msgSize)
+			readSize += int(msgSize)
+		}
 
 	}
 

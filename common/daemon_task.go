@@ -6,16 +6,16 @@ type DaemonTask struct {
 	stopped bool
 }
 
-func (r DaemonTask) Start() {
+func (r *DaemonTask) Start() {
 	go func() {
 		r.Run()
 	}()
 }
 
-func (r DaemonTask) Stop() {
+func (r *DaemonTask) Stop() {
 	r.stopped = true
 }
 
-func (r DaemonTask) IsStopped() bool {
+func (r *DaemonTask) IsStopped() bool {
 	return r.stopped
 }

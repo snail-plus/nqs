@@ -25,7 +25,7 @@ func (r FlushRealTimeService) start() {
 	r.Start()
 }
 
-func (r FlushRealTimeService) run() {
+func (r *FlushRealTimeService) run() {
 	flushService := r
 	printFlushProgress := false
 	for !r.IsStopped() {

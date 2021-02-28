@@ -97,3 +97,17 @@ func TestNet(t *testing.T) {
 	println(len(toByte))
 	println(util.ByteToAddress(toByte))
 }
+
+type A struct {
+	a int
+}
+
+func (a *A) age() {
+	a.a = 34
+}
+
+func TestA(t *testing.T) {
+	a := A{}
+	a.age()
+	println(a.a)
+}
