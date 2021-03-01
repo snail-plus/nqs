@@ -56,4 +56,19 @@ type PullMessageRequestHeader struct {
 	Topic         string
 	QueueOffset   int64
 	MaxMsgNums    int32
+	QueueId       int32
+}
+
+func (r PullMessageRequestHeader) checkFields() {
+
+}
+
+type PullMessageResponseHeader struct {
+	NextBeginOffset int64
+	MinOffset       int64
+	MaxOffset       int64
+}
+
+func (r PullMessageResponseHeader) checkFields() {
+
 }

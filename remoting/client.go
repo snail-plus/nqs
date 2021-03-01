@@ -5,6 +5,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"nqs/code"
+	"nqs/common/message"
 	"nqs/common/protocol/heartbeat"
 	net2 "nqs/remoting/channel"
 	"nqs/remoting/protocol"
@@ -93,6 +94,24 @@ func (r *DefaultClient) SendHeartbeat(addr string) (*protocol.Command, error) {
 	command := protocol.CreatesRequestCommand()
 	command.Code = code.Heartbeat
 	command.Body = body
+
+	response, err := r.InvokeSync(addr, command, 3000)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
+}
+
+func (r DefaultClient) PullMessage(addr, topic string, offset int64, queueId, maxMsgCount int32) (*protocol.Command, error) {
+	header := message.PullMessageRequestHeader{}
+	header.Topic = topic
+	header.QueueId = queueId
+	header.MaxMsgNums = maxMsgCount
+	header.QueueOffset = offset
+
+	command := protocol.CreatesRequestCommand()
+	command.CustomHeader = header
 
 	response, err := r.InvokeSync(addr, command, 3000)
 	if err != nil {

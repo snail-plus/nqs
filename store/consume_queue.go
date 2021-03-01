@@ -47,7 +47,7 @@ func NewConsumeQueue(defaultMessageStore *DefaultMessageStore,
 
 func (r *ConsumeQueue) putMessagePositionInfoWrapper(request *DispatchRequest) {
 	tagsCode := request.tagsCode
-	result := r.putMessagePositionInfo(request.commitLogOffset, request.msgSize, tagsCode, request.commitLogOffset)
+	result := r.putMessagePositionInfo(request.commitLogOffset, request.msgSize, tagsCode, request.consumeQueueOffset)
 	if !result {
 		log.Errorf("putMessagePositionInfo error")
 		return
@@ -72,6 +72,7 @@ func (r *ConsumeQueue) putMessagePositionInfo(offset int64, size int32, tagsCode
 		r.mappedFileQueue.flushedWhere = expectLogicOffset
 		// 从 expectLogicOffset 开始建索引 前边内容不需要所以填充空白 并且设置 flush索引 这里空白数据丢失无所谓
 		r.fillPreBlank(mappedFile, expectLogicOffset)
+		log.Infof("fill blank")
 	}
 
 	if cqOffset != 0 {
@@ -82,7 +83,7 @@ func (r *ConsumeQueue) putMessagePositionInfo(offset int64, size int32, tagsCode
 		}
 
 		if expectLogicOffset != currentLogicOffset {
-			log.Infof("[bug] logic queue order maybe wrong, expectLogicOffset: %d currentLogicOffset:  %d", expectLogicOffset, currentLogicOffset)
+			log.Infof("[bug] logic queue order maybe wrong, expectLogicOffset: %d currentLogicOffset:  %d, cqOffset: %d", expectLogicOffset, currentLogicOffset, cqOffset)
 		}
 	}
 
@@ -109,4 +110,21 @@ func (r *ConsumeQueue) Flush() bool {
 
 func (r ConsumeQueue) GetMinOffsetInQueue() int64 {
 	return r.minLogicOffset / CqStoreUnitSize
+}
+
+func (r ConsumeQueue) GetMaxOffsetInQueue() int64 {
+	return r.mappedFileQueue.GetMaxOffset() / CqStoreUnitSize
+}
+
+func (r ConsumeQueue) GetIndexBuffer(startIndex int64) *SelectMappedBufferResult {
+	mappedFileSize := mappedFileSizeConsumeQueue
+	offset := startIndex * CqStoreUnitSize
+	if offset >= r.GetMinOffsetInQueue() {
+		mappedFile := r.mappedFileQueue.findMappedFileByOffset(offset, false)
+		if mappedFile != nil {
+			return mappedFile.selectMappedBuffer(int32(offset % int64(mappedFileSize)))
+		}
+	}
+
+	return nil
 }

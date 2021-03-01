@@ -222,6 +222,16 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 
 }
 
+func (r CommitLog) GetMessage(offset int64, size int32) *SelectMappedBufferResult {
+	mappedFile := r.mappedFileQueue.findMappedFileByOffset(offset, offset == 0)
+	if mappedFile == nil {
+		return nil
+	}
+
+	pos := offset % commitLogFileSize
+	return mappedFile.selectMappedBufferBySize(int32(pos), size)
+}
+
 func (r CommitLog) RollNextFile(offset int64) int64 {
 	return offset + commitLogFileSize - offset%commitLogFileSize
 }
@@ -320,9 +330,10 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	log.Infof("copyLength: %d", copyLength)
 
 	appendResult := &AppendMessageResult{
-		WroteBytes:  int32(msgLength),
-		WroteOffset: wroteOffset,
-		Status:      AppendOk,
+		WroteBytes:   int32(msgLength),
+		WroteOffset:  wroteOffset,
+		Status:       AppendOk,
+		LogicsOffset: queueOffset,
 	}
 
 	// next offset

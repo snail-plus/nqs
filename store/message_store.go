@@ -2,14 +2,9 @@ package store
 
 import (
 	"container/list"
+	"encoding/binary"
 	log "github.com/sirupsen/logrus"
-	"github.com/syndtr/goleveldb/leveldb"
-	lutil "github.com/syndtr/goleveldb/leveldb/util"
 	"nqs/common"
-	"nqs/common/message"
-	"nqs/util"
-	"strconv"
-	"strings"
 	"sync"
 	"time"
 )
@@ -23,13 +18,12 @@ type MessageStore interface {
 	Start()
 	Shutdown()
 	PutMessages(*MessageExtBrokerInner) *PutMessageResult
-	GetMessage(group string, topic string, offset int64, maxMsgNums int32) *GetMessageResult
+	GetMessage(group string, topic string, offset int64, queueId, maxMsgNums int32) *GetMessageResult
 	DoDispatch(request *DispatchRequest)
 }
 
 type DefaultMessageStore struct {
 	lock sync.Mutex
-	db   *leveldb.DB
 	// topic-offset
 	topicQueueTable map[string]int64
 	//topic-queue
@@ -91,56 +85,85 @@ func (r *DefaultMessageStore) PutMessages(messageExt *MessageExtBrokerInner) *Pu
 	return result
 }
 
-func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int64, maxMsgNums int32) *GetMessageResult {
-	r.lock.Lock()
-	defer r.lock.Unlock()
+func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int64, queueId, maxMsgNums int32) *GetMessageResult {
 
-	// 存储格式 key: topic-offset value: 消息值
-	baseOffsetStr := topic + strconv.FormatInt(offset, 10)
-	iter := r.db.NewIterator(&lutil.Range{
-		Start: []byte(baseOffsetStr),
-		Limit: []byte(baseOffsetStr + strconv.Itoa(int(maxMsgNums))),
-	}, nil)
-	defer iter.Release()
+	getResult := &GetMessageResult{}
+	consumeQueue := r.findConsumeQueue(topic, queueId)
+	if consumeQueue == nil {
+		getResult.Status = NoMatchedLogicQueue
+		return getResult
+	}
 
-	ext := make([]*message.MessageExt, 0, maxMsgNums)
+	minOffset := consumeQueue.GetMinOffsetInQueue()
+	maxOffset := consumeQueue.GetMaxOffsetInQueue()
+	getResult.MinOffset = minOffset
+	getResult.MaxOffset = maxOffset
 
-	index := 0
-	for iter.Next() {
-		// Remember that the contents of the returned slice should not be modified, and
-		// only valid until the next call to Next.
-		key := iter.Key()
-		value := iter.Value()
+	if maxOffset == 0 {
+		getResult.Status = NoMessageInQueue
+		return getResult
+	}
 
-		keyOffset, err := strconv.ParseInt(strings.TrimPrefix(string(key), topic), 10, 64)
-		if err != nil {
-			log.Errorf("key 提取offset失败, key: %s, group: %s", string(key), group)
+	if offset < minOffset {
+		getResult.Status = OffsetTooSmall
+		getResult.NextBeginOffset = minOffset
+		return getResult
+	}
+
+	if offset == maxOffset {
+		getResult.Status = OffsetOverflowOne
+		getResult.NextBeginOffset = offset
+		return getResult
+	}
+
+	if offset > maxOffset {
+		getResult.Status = OffsetOverflowBadly
+		getResult.NextBeginOffset = maxOffset
+		return getResult
+	}
+
+	// 逻辑Offset
+	bufferConsumeQueue := consumeQueue.GetIndexBuffer(offset)
+	if bufferConsumeQueue == nil {
+		getResult.Status = OffsetFoundNull
+		return getResult
+	}
+
+	var i int32 = 0
+	var nextBeginOffset int64 = 0
+	for ; i < bufferConsumeQueue.size && i < maxMsgNums; i += CqStoreUnitSize {
+		buffer := bufferConsumeQueue.byteBuffer
+
+		var offsetPy int64
+		binary.Read(buffer, binary.BigEndian, offsetPy)
+
+		var sizePy int32
+		binary.Read(buffer, binary.BigEndian, sizePy)
+
+		var tagCode int64
+		binary.Read(buffer, binary.BigEndian, tagCode)
+
+		if sizePy == 0 {
+			log.Warnf("[bug] sizePy is 0, offsetPy: %d", offsetPy)
+			continue
+		}
+		// 根据consumeQueue 存储的Offset查找 commitLog存储的消息
+		result := r.commitLog.GetMessage(offsetPy, sizePy)
+		if result == nil {
 			continue
 		}
 
-		ext[index] = &message.MessageExt{
-			BrokerName:    "",
-			BornTimestamp: time.Now().Unix(),
-			QueueOffset:   keyOffset,
-			Message: message.Message{
-				Topic: topic,
-				Body:  value},
-		}
-		index++
+		nextBeginOffset = offset + (int64(i) / int64(CqStoreUnitSize))
+		getResult.AddMessage(result)
+		getResult.Status = Found
+		getResult.NextBeginOffset = nextBeginOffset
 	}
-
-	if index == 0 {
-		return &GetMessageResult{Status: NoMatchedMessage, Messages: ext[0:index]}
-	}
-
-	getResult := &GetMessageResult{Status: Found, Messages: ext[0:index]}
 
 	return getResult
 }
 
 func (r *DefaultMessageStore) recoverTopicQueueTable() {
 	r.topicQueueTable = map[string]int64{}
-
 }
 
 func (r *DefaultMessageStore) DoDispatch(request *DispatchRequest) {
@@ -151,23 +174,14 @@ func (r *DefaultMessageStore) DoDispatch(request *DispatchRequest) {
 	}
 }
 
+func (r DefaultMessageStore) nextOffsetCorrection(oldOffset, newOffset int64) int64 {
+	return newOffset
+}
+
 func (r *DefaultMessageStore) persist() {
 	go func() {
-		var index int64 = 0
 		for !r.stop {
-			for k, v := range r.topicQueueTable {
-				err := r.db.Put([]byte(topicOffsetPrefix+k), util.Int64ToBytes(v), nil)
-				if err != nil {
-					log.Errorf("persist topicQueueTable error, %s", err.Error())
-				}
 
-				if index%20 == 0 {
-					log.Infof("k: %s, v: %d, persist success", k, v)
-				}
-
-				time.Sleep(5 * time.Second)
-				index++
-			}
 		}
 	}()
 }

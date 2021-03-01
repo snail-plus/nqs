@@ -34,7 +34,7 @@ func openFile(filePath string, flags int) (*os.File, error) {
 
 func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 
-	log.Infof("prepare init mapped file: %s", fileName)
+	log.Infof("prepare init mapped file: %s, fileSize: %d", fileName, fileSize)
 	file, err := openFile(fileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC)
 	if err != nil {
 		return nil, err
@@ -151,6 +151,21 @@ func (r *MappedFile) selectMappedBuffer(pos int32) *SelectMappedBufferResult {
 
 	if pos < readPosition && pos >= 0 {
 		size := readPosition - pos
+		return &SelectMappedBufferResult{
+			startOffset: r.fileFromOffset + int64(pos),
+			mappedFile:  r,
+			byteBuffer:  bytes.NewBuffer(r.mmap[pos : pos+size]),
+			size:        size,
+		}
+	}
+
+	return nil
+}
+
+func (r *MappedFile) selectMappedBufferBySize(pos, size int32) *SelectMappedBufferResult {
+	readPosition := atomic.LoadInt32(&r.wrotePosition)
+
+	if pos+size <= readPosition {
 		return &SelectMappedBufferResult{
 			startOffset: r.fileFromOffset + int64(pos),
 			mappedFile:  r,

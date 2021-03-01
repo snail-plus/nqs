@@ -3,7 +3,7 @@ package store
 type PutMessageStatus int32
 
 const (
-	PutOk PutMessageStatus = 1
+	PutOk PutMessageStatus = iota
 	FlushDiskTimeout
 	UnknownError
 	CreateMappedFileFailed

@@ -51,7 +51,7 @@ func (s *SendMessageProcessor) handlePutMessageResult(putResult *store.PutMessag
 	if putResult.PutMessageStatus == store.PutOk {
 		appendResult := putResult.AppendMessageResult
 		offset := appendResult.LogicsOffset
-		log.Infof("offset %d", offset)
+		log.Infof("append result LogicsOffset %d", offset)
 		responseHeader := message.SendMessageResponseHeader{QueueOffset: offset, MsgId: ""}
 		response.CustomHeader = responseHeader
 		response.Code = code.Success
