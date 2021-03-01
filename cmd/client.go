@@ -72,7 +72,7 @@ func main() {
 			}
 
 			log.Infof("pull 返回: %+v", response)
-			time.Sleep(20 * time.Second)
+			time.Sleep(5 * time.Second)
 		}
 	}()
 

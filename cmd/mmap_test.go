@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"container/list"
+	"encoding/binary"
 	"github.com/edsrzf/mmap-go"
 	"nqs/common"
 	"nqs/util"
@@ -110,4 +112,12 @@ func TestA(t *testing.T) {
 	a := A{}
 	a.age()
 	println(a.a)
+
+	buffer := bytes.NewBuffer(make([]byte, 20))
+	var data byte = 2
+
+	buffer.Reset()
+	binary.Write(buffer, binary.BigEndian, data)
+	j := buffer.Bytes()
+	println(j[0])
 }

@@ -28,10 +28,11 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*net2.Channel, error) {
 	defer r.lock.Unlock()
 
 	if v, ok := r.ChannelMap[addr]; ok {
+		log.Infof("获取到老连接，address: %s", v.Conn.RemoteAddr().String())
 		return v, nil
 	}
 
-	conn, err := net.Dial("tcp", addr)
+	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
 	if err != nil {
 		return nil, err
 	}

@@ -59,6 +59,7 @@ func (r *ConsumeQueue) putMessagePositionInfo(offset int64, size int32, tagsCode
 	binary.Write(r.byteBufferIndex, binary.BigEndian, offset)
 	binary.Write(r.byteBufferIndex, binary.BigEndian, size)
 	binary.Write(r.byteBufferIndex, binary.BigEndian, tagsCode)
+	log.Infof("putMessagePositionInfo offset: %d, size: %d, cqOffset: %d", offset, size, cqOffset)
 
 	expectLogicOffset := cqOffset * CqStoreUnitSize
 	mappedFile := r.mappedFileQueue.GetLastMappedFileByOffset(expectLogicOffset, true)
@@ -88,7 +89,8 @@ func (r *ConsumeQueue) putMessagePositionInfo(offset int64, size int32, tagsCode
 	}
 
 	r.maxPhysicOffset = offset + int64(size)
-	return mappedFile.AppendMessageBytes(r.byteBufferIndex.Bytes())
+	msgBytes := r.byteBufferIndex.Bytes()
+	return mappedFile.AppendMessageBytes(msgBytes)
 }
 
 func (r *ConsumeQueue) fillPreBlank(mappedFile *MappedFile, untilWhere int64) {

@@ -218,6 +218,7 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 		sysFlag:                   sysFlag,
 		preparedTransactionOffset: preparedTransactionOffset,
 		propertiesMap:             propertiesMap,
+		consumeQueueOffset:        queueOffset,
 	}
 
 }
@@ -293,7 +294,7 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	// 5 flag 4
 	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.Flag)))
 	// 6 queueOffset 8
-	msgStoreItemMemory.Write(util.Int64ToBytes(ext.QueueOffset))
+	msgStoreItemMemory.Write(util.Int64ToBytes(queueOffset))
 	// 7 physicalOffset 8
 	msgStoreItemMemory.Write(util.Int64ToBytes(fileFromOffset + int64(currentOffset)))
 	// 8 sysFlag 4

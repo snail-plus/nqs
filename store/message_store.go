@@ -88,6 +88,8 @@ func (r *DefaultMessageStore) PutMessages(messageExt *MessageExtBrokerInner) *Pu
 func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int64, queueId, maxMsgNums int32) *GetMessageResult {
 
 	getResult := &GetMessageResult{}
+	getResult.Status = OffsetFoundNull
+
 	consumeQueue := r.findConsumeQueue(topic, queueId)
 	if consumeQueue == nil {
 		getResult.Status = NoMatchedLogicQueue
@@ -131,8 +133,9 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 
 	var i int32 = 0
 	var nextBeginOffset int64 = 0
+	buffer := bufferConsumeQueue.byteBuffer
+	log.Infof("buffer length: %d", buffer.Len())
 	for ; i < bufferConsumeQueue.size && i < maxMsgNums; i += CqStoreUnitSize {
-		buffer := bufferConsumeQueue.byteBuffer
 
 		var offsetPy int64
 		binary.Read(buffer, binary.BigEndian, offsetPy)
@@ -148,7 +151,10 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 			continue
 		}
 		// 根据consumeQueue 存储的Offset查找 commitLog存储的消息
+		log.Infof("xxxx1")
 		result := r.commitLog.GetMessage(offsetPy, sizePy)
+		log.Infof("xxxx2")
+
 		if result == nil {
 			continue
 		}
