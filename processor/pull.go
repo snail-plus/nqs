@@ -58,8 +58,8 @@ func (s *PullMessageProcessor) readGetMessageResult(getResult *store.GetMessageR
 
 	mapedList := getResult.MessageMapedList
 	for item := mapedList.Front(); item != nil; item = item.Next() {
-		msg := item.Value.(bytes.Buffer)
-		buffer.Write(msg.Bytes())
+		msg := item.Value.(*store.SelectMappedBufferResult)
+		buffer.Write(msg.ByteBuffer.Bytes())
 	}
 	return buffer.Bytes()
 }

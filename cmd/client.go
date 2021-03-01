@@ -59,7 +59,7 @@ func main() {
 			}
 
 			log.Debugf("心跳返回: %+v", heartbeat)
-			time.Sleep(20 * time.Second)
+			time.Sleep(50 * time.Second)
 		}
 	}()
 

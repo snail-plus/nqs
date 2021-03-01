@@ -104,7 +104,7 @@ func (r *DefaultClient) SendHeartbeat(addr string) (*protocol.Command, error) {
 	return response, nil
 }
 
-func (r DefaultClient) PullMessage(addr, topic string, offset int64, queueId, maxMsgCount int32) (*protocol.Command, error) {
+func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, maxMsgCount int32) (*protocol.Command, error) {
 	header := message.PullMessageRequestHeader{}
 	header.Topic = topic
 	header.QueueId = queueId
@@ -120,6 +120,8 @@ func (r DefaultClient) PullMessage(addr, topic string, offset int64, queueId, ma
 		return nil, err
 	}
 
+	// body := response.Body
+	// decode body 哈哈
 	return response, nil
 }
 

@@ -133,27 +133,26 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 
 	var i int32 = 0
 	var nextBeginOffset int64 = 0
-	buffer := bufferConsumeQueue.byteBuffer
+	buffer := bufferConsumeQueue.ByteBuffer
 	log.Infof("buffer length: %d", buffer.Len())
-	for ; i < bufferConsumeQueue.size && i < maxMsgNums; i += CqStoreUnitSize {
+	maxFilterMessageCount := maxMsgNums * CqStoreUnitSize
+	for ; i < bufferConsumeQueue.size && i < maxFilterMessageCount; i += CqStoreUnitSize {
 
 		var offsetPy int64
-		binary.Read(buffer, binary.BigEndian, offsetPy)
+		binary.Read(buffer, binary.BigEndian, &offsetPy)
 
 		var sizePy int32
-		binary.Read(buffer, binary.BigEndian, sizePy)
+		binary.Read(buffer, binary.BigEndian, &sizePy)
 
 		var tagCode int64
-		binary.Read(buffer, binary.BigEndian, tagCode)
+		binary.Read(buffer, binary.BigEndian, &tagCode)
 
 		if sizePy == 0 {
 			log.Warnf("[bug] sizePy is 0, offsetPy: %d", offsetPy)
 			continue
 		}
 		// 根据consumeQueue 存储的Offset查找 commitLog存储的消息
-		log.Infof("xxxx1")
 		result := r.commitLog.GetMessage(offsetPy, sizePy)
-		log.Infof("xxxx2")
 
 		if result == nil {
 			continue
@@ -226,10 +225,10 @@ func (r *RePutMessageService) doRePut() {
 		}
 
 		r.RePutFromOffset = result.startOffset
-		log.Infof("result, startOffset %d, byte length: %d, size: %d", result.startOffset, result.byteBuffer.Len(), result.size)
+		log.Infof("result, startOffset %d, byte length: %d, size: %d", result.startOffset, result.ByteBuffer.Len(), result.size)
 
 		for readSize := 0; readSize < int(result.size) && doNext; {
-			dispatchRequest := r.commitLog.CheckMessage(result.byteBuffer, false, false)
+			dispatchRequest := r.commitLog.CheckMessage(result.ByteBuffer, false, false)
 			msgSize := dispatchRequest.msgSize
 			if !dispatchRequest.success {
 				doNext = false

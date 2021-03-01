@@ -154,7 +154,7 @@ func (r *MappedFile) selectMappedBuffer(pos int32) *SelectMappedBufferResult {
 		return &SelectMappedBufferResult{
 			startOffset: r.fileFromOffset + int64(pos),
 			mappedFile:  r,
-			byteBuffer:  bytes.NewBuffer(r.mmap[pos : pos+size]),
+			ByteBuffer:  bytes.NewBuffer(r.mmap[pos : pos+size]),
 			size:        size,
 		}
 	}
@@ -169,7 +169,7 @@ func (r *MappedFile) selectMappedBufferBySize(pos, size int32) *SelectMappedBuff
 		return &SelectMappedBufferResult{
 			startOffset: r.fileFromOffset + int64(pos),
 			mappedFile:  r,
-			byteBuffer:  bytes.NewBuffer(r.mmap[pos : pos+size]),
+			ByteBuffer:  bytes.NewBuffer(r.mmap[pos : pos+size]),
 			size:        size,
 		}
 	}
