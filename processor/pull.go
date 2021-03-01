@@ -33,6 +33,8 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 		return
 	}
 
+	log.Infof("requestHeader: %+v", requestHeader)
+
 	getMessage := s.Store.GetMessage(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueOffset, requestHeader.QueueId, requestHeader.MaxMsgNums)
 	if getMessage.Status != store.Found {
 		response.Code = int32(getMessage.Status)

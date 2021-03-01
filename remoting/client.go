@@ -111,6 +111,7 @@ func (r DefaultClient) PullMessage(addr, topic string, offset int64, queueId, ma
 	header.QueueOffset = offset
 
 	command := protocol.CreatesRequestCommand()
+	command.Code = code.PullMessage
 	command.CustomHeader = header
 
 	response, err := r.InvokeSync(addr, command, 3000)
