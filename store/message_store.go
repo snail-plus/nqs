@@ -40,6 +40,8 @@ type DefaultMessageStore struct {
 	rePutMessageService RePutMessageService
 
 	dispatcherList *list.List
+
+	flushConsumeQueue FlushConsumeQueue
 }
 
 func (r *DefaultMessageStore) Load() bool {
@@ -59,6 +61,10 @@ func NewStore() *DefaultMessageStore {
 	defaultStore.dispatcherList = list.New()
 	defaultStore.dispatcherList.PushBack(CommitLogDispatcherBuildConsumeQueue{store: defaultStore})
 
+	defaultStore.flushConsumeQueue = FlushConsumeQueue{
+		store: defaultStore,
+	}
+
 	return defaultStore
 }
 
@@ -67,6 +73,8 @@ func (r *DefaultMessageStore) Start() {
 	r.commitLog.Start()
 
 	r.rePutMessageService.Start()
+
+	r.flushConsumeQueue.start()
 
 	r.recoverTopicQueueTable()
 
@@ -230,6 +238,7 @@ func (r DefaultMessageStore) putMessagePositionInfo(request *DispatchRequest) {
 }
 
 func (r *DefaultMessageStore) findConsumeQueue(topic string, queueId int32) *ConsumeQueue {
+	// TODO 处理线程安全
 	queueMap := r.consumeQueueTable[topic]
 	if queueMap == nil {
 		queueMap = map[int32]*ConsumeQueue{}

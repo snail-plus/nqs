@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	log "github.com/sirupsen/logrus"
+	"math"
 	"strconv"
 )
 
@@ -65,5 +66,47 @@ func (r *ConsumeQueue) putMessagePositionInfo(offset int64, size int32, tagsCode
 		return false
 	}
 
-	return false
+	// 索引文件第一次创建的时候校正 最小LogicOffset(后边offset从此处开始往后推进) cqOffset 为0 时无需校对
+	if mappedFile.firstCreateInQueue && cqOffset != 0 && mappedFile.GetWrotePosition() == 0 {
+		r.minLogicOffset = expectLogicOffset
+		r.mappedFileQueue.flushedWhere = expectLogicOffset
+		// 从 expectLogicOffset 开始建索引 前边内容不需要所以填充空白 并且设置 flush索引 这里空白数据丢失无所谓
+		r.fillPreBlank(mappedFile, expectLogicOffset)
+	}
+
+	if cqOffset != 0 {
+		currentLogicOffset := int64(mappedFile.GetWrotePosition()) + mappedFile.fileFromOffset
+		if expectLogicOffset < currentLogicOffset {
+			log.Info("Build  consume queue repeatedly")
+			return true
+		}
+
+		if expectLogicOffset != currentLogicOffset {
+			log.Infof("[bug] logic queue order maybe wrong, expectLogicOffset: %d currentLogicOffset:  %d", expectLogicOffset, currentLogicOffset)
+		}
+	}
+
+	r.maxPhysicOffset = offset + int64(size)
+	return mappedFile.AppendMessageBytes(r.byteBufferIndex.Bytes())
+}
+
+func (r *ConsumeQueue) fillPreBlank(mappedFile *MappedFile, untilWhere int64) {
+	blankByte := make([]byte, CqStoreUnitSize)
+	byteBuffer := bytes.NewBuffer(blankByte[:0])
+	binary.Write(byteBuffer, binary.BigEndian, int64(0))
+	binary.Write(byteBuffer, binary.BigEndian, int32(math.MaxInt32))
+	binary.Write(byteBuffer, binary.BigEndian, int64(0))
+
+	until := untilWhere % int64(r.mappedFileQueue.mappedFileSize)
+	for i := 0; i < int(until); i += CqStoreUnitSize {
+		mappedFile.AppendMessageBytes(byteBuffer.Bytes())
+	}
+}
+
+func (r *ConsumeQueue) Flush() bool {
+	return r.mappedFileQueue.Flush()
+}
+
+func (r ConsumeQueue) GetMinOffsetInQueue() int64 {
+	return r.minLogicOffset / CqStoreUnitSize
 }

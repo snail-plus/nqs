@@ -71,6 +71,17 @@ func (r *MappedFile) AppendMessage(msg *MessageExtBrokerInner, callback AppendMe
 	return r.AppendMessageInner(msg, callback)
 }
 
+func (r *MappedFile) AppendMessageBytes(data []byte) bool {
+	currentPos := atomic.LoadInt32(&r.wrotePosition)
+	if currentPos+int32(len(data)) <= r.fileSize {
+		copy(r.mmap[currentPos:], data)
+		r.wrotePosition = atomic.AddInt32(&r.wrotePosition, int32(len(data)))
+		return true
+	}
+
+	return false
+}
+
 func (r *MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback AppendMessageCallback) *AppendMessageResult {
 
 	var appendMessageResult *AppendMessageResult
@@ -125,6 +136,14 @@ func (r *MappedFile) isAbleToFlush() bool {
 
 func (r *MappedFile) MappedByte(position int32) mmap.MMap {
 	return r.mmap[position:]
+}
+
+func (r MappedFile) GetWrotePosition() int32 {
+	return atomic.LoadInt32(&r.wrotePosition)
+}
+
+func (r MappedFile) GetFlushedPosition() int32 {
+	return atomic.LoadInt32(&r.flushedPosition)
 }
 
 func (r *MappedFile) selectMappedBuffer(pos int32) *SelectMappedBufferResult {
