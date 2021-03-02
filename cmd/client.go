@@ -75,7 +75,7 @@ func main() {
 		var offset int64 = 0
 		for {
 			time.Sleep(5 * time.Second)
-			pullResult, err := defaultClient.PullMessage(addr, "testTopic", offset, 1, 1)
+			pullResult, err := defaultClient.PullMessage(addr, "testTopic", offset, 1, 20)
 			if err != nil {
 				log.Infof("PullMessage error : %s", err.Error())
 				continue
