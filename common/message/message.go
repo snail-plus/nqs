@@ -10,10 +10,6 @@ type Message struct {
 	properties    map[string]string
 }
 
-func (r Message) String() string {
-	return fmt.Sprintf("Message[topic: %s, Body: %s]", r.Topic, string(r.Body))
-}
-
 type MessageExt struct {
 	BrokerName                string
 	QueueId                   int32
@@ -30,6 +26,11 @@ type MessageExt struct {
 	PreparedTransactionOffset int64
 	BodyCrc                   int32
 	Message
+}
+
+func (r MessageExt) String() string {
+	return fmt.Sprintf("Message[MsgId: %s, topic: %s, queueOffset:%d, storeHost:%s, Body: %s]",
+		r.MsgId, r.Topic, r.QueueOffset, r.StoreHost, string(r.Body))
 }
 
 type CommandCustomHeader interface {
