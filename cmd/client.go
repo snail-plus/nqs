@@ -4,12 +4,14 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
+	"nqs/client/consumer"
 	"nqs/code"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
 	"nqs/remoting"
 	"nqs/remoting/channel"
 	"nqs/remoting/protocol"
+	"strconv"
 	"time"
 )
 
@@ -24,27 +26,33 @@ const addr = "localhost:8089"
 func main() {
 
 	// write
+	var index = 0
 	go func() {
-		msg := "test5502323"
-		command := protocol.CreatesRequestCommand()
-		command.Code = code.SendMessage
+		for {
+			msg := "msg-" + strconv.Itoa(index)
+			command := protocol.CreatesRequestCommand()
+			command.Code = code.SendMessage
 
-		header := message.SendMessageRequestHeader{}
-		header.BornTimestamp = time.Now().Unix()
-		header.ProducerGroup = "test"
-		header.Topic = "testTopic"
-		header.QueueId = 1
+			header := message.SendMessageRequestHeader{}
+			header.BornTimestamp = time.Now().Unix()
+			header.ProducerGroup = "test"
+			header.Topic = "testTopic"
+			header.QueueId = 1
 
-		command.CustomHeader = header
-		command.Body = []byte(msg)
+			command.CustomHeader = header
+			command.Body = []byte(msg)
 
-		response, err2 := defaultClient.InvokeSync(addr, command, 2000)
-		if err2 != nil {
-			log.Errorf("err2: %s", err2.Error())
-			return
+			response, err2 := defaultClient.InvokeSync(addr, command, 2000)
+			if err2 != nil {
+				log.Errorf("err2: %s", err2.Error())
+				continue
+			}
+
+			log.Infof("发送 response: %+v", response)
+			time.Sleep(10 * time.Second)
+			index++
 		}
 
-		log.Infof("发送 response: %+v", response)
 	}()
 
 	const MaxErrorCount = 20
@@ -64,15 +72,30 @@ func main() {
 	}()
 
 	go func() {
+		var offset int64 = 0
 		for {
-			response, err := defaultClient.PullMessage(addr, "testTopic", 0, 1, 2)
+			time.Sleep(5 * time.Second)
+			pullResult, err := defaultClient.PullMessage(addr, "testTopic", offset, 1, 1)
 			if err != nil {
 				log.Infof("PullMessage error : %s", err.Error())
 				continue
 			}
 
-			log.Infof("pull 返回: %+v", response)
-			time.Sleep(5 * time.Second)
+			if pullResult.NextBeginOffset > offset {
+				offset = pullResult.NextBeginOffset
+			}
+
+			if pullResult.PullStatus != consumer.Found {
+				log.Infof("pull code: %d", int32(pullResult.PullStatus))
+				continue
+			}
+
+			msgs := pullResult.MsgFoundList
+			for item := msgs.Front(); item != nil; item = item.Next() {
+				msg := item.Value.(*message.MessageExt)
+				log.Infof("msg size: %d, pull 返回: %+v", msgs.Len(), msg)
+			}
+
 		}
 	}()
 

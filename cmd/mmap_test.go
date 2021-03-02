@@ -120,4 +120,17 @@ func TestA(t *testing.T) {
 	binary.Write(buffer, binary.BigEndian, data)
 	j := buffer.Bytes()
 	println(j[0])
+
+}
+
+func TestB(t *testing.T) {
+	xx := []byte{1, 2, 3}
+	buffer := bytes.NewBuffer(xx)
+
+	for buffer.Len() > 0 {
+		var d int8
+		binary.Read(buffer, binary.BigEndian, &d)
+		println(d)
+	}
+
 }

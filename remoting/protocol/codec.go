@@ -98,7 +98,7 @@ func makeCustomHeaderToNet(c *Command) {
 	}
 
 	toMap := util.StructToMap(c.CustomHeader)
-	log.Infof("toMap: %+v", toMap)
+	log.Debugf("toMap: %+v", toMap)
 	for k, v := range toMap {
 		fields[k] = v
 	}

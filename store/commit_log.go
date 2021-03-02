@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"github.com/edsrzf/mmap-go"
 	log "github.com/sirupsen/logrus"
+	"nqs/common/message"
 	"nqs/util"
 	"strconv"
 	"strings"
@@ -12,8 +13,9 @@ import (
 )
 
 const (
-	MessageMagicCode = -626843481
-	BlankMagicCode   = -875286124
+	MessageMagicCode      = -626843481
+	BlankMagicCode        = -875286124
+	EndFileMinBlankLength = 8
 )
 
 var topicQueueTable = map[string]int64{}
@@ -76,7 +78,30 @@ func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 		}
 	}
 
-	appendMessageResult := mappedFile.AppendMessage(inner, r.appendMessageCallback)
+	var appendMessageResult = mappedFile.AppendMessage(inner, r.appendMessageCallback)
+	switch appendMessageResult.Status {
+	case AppendOk:
+		break
+	case EndOfFile:
+		newMappedFile := r.mappedFileQueue.GetLastMappedFileByOffset(0, true)
+		if newMappedFile == nil {
+			log.Warnf("create new commitLog failed, topic: %s", inner.Topic)
+			return &PutMessageResult{
+				PutMessageStatus:    CreateMappedFileFailed,
+				AppendMessageResult: *appendMessageResult,
+			}
+		}
+
+		log.Infof("endOfFile, create new commitLog file: %s", newMappedFile.file.Name())
+		appendMessageResult = newMappedFile.AppendMessage(inner, r.appendMessageCallback)
+		break
+	default:
+		return &PutMessageResult{
+			PutMessageStatus:    UnknownError,
+			AppendMessageResult: *appendMessageResult,
+		}
+	}
+
 	log.Infof("PutMessage ok, topic: %s", inner.Topic)
 	return &PutMessageResult{
 		PutMessageStatus:    PutOk,
@@ -105,6 +130,8 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 
 	var totalSize int32
 	binary.Read(byteBuff, binary.BigEndian, &totalSize)
+
+	log.Infof("build index, totalSize: %d", totalSize)
 
 	var magicCode int32
 	binary.Read(byteBuff, binary.BigEndian, &magicCode)
@@ -282,6 +309,18 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 
 	msgLength := calMsgLength(bodyLength, topicLength, propertiesLength)
 
+	if int32(msgLength)+EndFileMinBlankLength > maxBlank {
+		blankBuffer := bytes.NewBuffer([]byte{})
+		binary.Write(blankBuffer, binary.BigEndian, maxBlank)
+		binary.Write(blankBuffer, binary.BigEndian, int32(BlankMagicCode))
+		copy(fileMap, blankBuffer.Bytes())
+		return &AppendMessageResult{
+			Status:      EndOfFile,
+			WroteOffset: wroteOffset,
+			WroteBytes:  maxBlank,
+		}
+	}
+
 	// 1 totalSize 4
 	msgStoreItemMemory.Write(util.Int32ToBytes(msgLength))
 
@@ -299,6 +338,7 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	msgStoreItemMemory.Write(util.Int64ToBytes(fileFromOffset + int64(currentOffset)))
 	// 8 sysFlag 4
 
+	log.Infof("")
 	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.SysFlag)))
 	// 9 bornTimestamp 8
 	msgStoreItemMemory.Write(util.Int64ToBytes(ext.BornTimestamp))
@@ -307,7 +347,8 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	// 11 storeTimestamp 8
 	msgStoreItemMemory.Write(util.Int64ToBytes(ext.StoreTimestamp))
 	// 12 storeHostAddress 8
-	msgStoreItemMemory.Write(util.AddressToByte(ext.StoreHost))
+	storeHostByte := util.AddressToByte(ext.StoreHost)
+	msgStoreItemMemory.Write(storeHostByte)
 	// 13 reconsumeTimes
 
 	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.ReconsumeTimes)))
@@ -328,13 +369,14 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	}
 
 	copyLength := copy(fileMap, msgStoreItemMemory.Bytes())
-	log.Infof("copyLength: %d", copyLength)
+	log.Infof("copyLength: %d, bodyLength: %d", copyLength, bodyLength)
 
 	appendResult := &AppendMessageResult{
 		WroteBytes:   int32(msgLength),
 		WroteOffset:  wroteOffset,
 		Status:       AppendOk,
 		LogicsOffset: queueOffset,
+		MsgId:        message.CreateMessageId(storeHostByte, wroteOffset),
 	}
 
 	// next offset

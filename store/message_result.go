@@ -37,3 +37,10 @@ func (r *GetMessageResult) AddMessage(result *SelectMappedBufferResult) {
 	r.MessageMapedList.PushBack(result)
 	r.BufferTotalSize += result.size
 }
+
+func (r *GetMessageResult) GetMsgSize() int {
+	if r.MessageMapedList == nil {
+		return 0
+	}
+	return r.MessageMapedList.Len()
+}

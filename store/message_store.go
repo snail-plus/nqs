@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"encoding/binary"
 	log "github.com/sirupsen/logrus"
+	"math"
 	"nqs/common"
 	"sync"
 	"time"
@@ -89,6 +90,7 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 
 	getResult := &GetMessageResult{}
 	getResult.Status = OffsetFoundNull
+	getResult.NextBeginOffset = offset
 
 	consumeQueue := r.findConsumeQueue(topic, queueId)
 	if consumeQueue == nil {
@@ -127,7 +129,8 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 	// 逻辑Offset
 	bufferConsumeQueue := consumeQueue.GetIndexBuffer(offset)
 	if bufferConsumeQueue == nil {
-		getResult.Status = OffsetFoundNull
+		getResult.Status = NoMessageInQueue
+		getResult.NextBeginOffset = offset
 		return getResult
 	}
 
@@ -147,6 +150,11 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 		var tagCode int64
 		binary.Read(buffer, binary.BigEndian, &tagCode)
 
+		// blank msg skip
+		if sizePy == math.MaxInt32 {
+			continue
+		}
+
 		if sizePy == 0 {
 			log.Warnf("[bug] sizePy is 0, offsetPy: %d", offsetPy)
 			continue
@@ -158,12 +166,12 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 			continue
 		}
 
-		nextBeginOffset = offset + (int64(i) / int64(CqStoreUnitSize))
 		getResult.AddMessage(result)
 		getResult.Status = Found
-		getResult.NextBeginOffset = nextBeginOffset
 	}
 
+	nextBeginOffset = offset + (int64(i) / int64(CqStoreUnitSize))
+	getResult.NextBeginOffset = nextBeginOffset
 	return getResult
 }
 

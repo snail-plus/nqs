@@ -3,7 +3,7 @@ package store
 type AppendMessageStatus int32
 
 const (
-	AppendOk AppendMessageStatus = 1
+	AppendOk AppendMessageStatus = iota
 	EndOfFile
 	MessageSizeExceeded
 	PropertiesSizeExceeded

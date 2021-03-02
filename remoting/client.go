@@ -1,14 +1,18 @@
 package remoting
 
 import (
+	"bytes"
+	"container/list"
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net"
+	"nqs/client/consumer"
 	"nqs/code"
 	"nqs/common/message"
 	"nqs/common/protocol/heartbeat"
 	net2 "nqs/remoting/channel"
 	"nqs/remoting/protocol"
+	"nqs/store"
 	"nqs/util"
 	"os"
 	"strconv"
@@ -28,7 +32,7 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*net2.Channel, error) {
 	defer r.lock.Unlock()
 
 	if v, ok := r.ChannelMap[addr]; ok {
-		log.Infof("获取到老连接，address: %s", v.Conn.RemoteAddr().String())
+		log.Debugf("获取到老连接，address: %s", v.Conn.RemoteAddr().String())
 		return v, nil
 	}
 
@@ -37,7 +41,7 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*net2.Channel, error) {
 		return nil, err
 	}
 
-	log.Infof("创建新连接")
+	log.Infof("创建新连接, remoteAddress: %s", addr)
 
 	newChannel := r.AddChannel(conn, addr)
 	go ReadMessage(*newChannel)
@@ -104,7 +108,7 @@ func (r *DefaultClient) SendHeartbeat(addr string) (*protocol.Command, error) {
 	return response, nil
 }
 
-func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, maxMsgCount int32) (*protocol.Command, error) {
+func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, maxMsgCount int32) (*consumer.PullResult, error) {
 	header := message.PullMessageRequestHeader{}
 	header.Topic = topic
 	header.QueueId = queueId
@@ -122,7 +126,29 @@ func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, m
 
 	// body := response.Body
 	// decode body 哈哈
-	return response, nil
+	responseHeader := message.PullMessageResponseHeader{}
+	err = util.MapToStruct(response.ExtFields, &responseHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	pullResult := &consumer.PullResult{MsgFoundList: list.New(),
+		NextBeginOffset: responseHeader.NextBeginOffset, MinOffset: responseHeader.MinOffset,
+		MaxOffset: responseHeader.MaxOffset,
+	}
+
+	if response.Code != int32(store.Found) {
+		return pullResult, nil
+	}
+
+	// decode msg body
+	bodyByteBuffer := bytes.NewBuffer(response.Body)
+	for bodyByteBuffer.Len() > 0 {
+		messageExt := message.DecodeMsg(bodyByteBuffer, false)
+		pullResult.MsgFoundList.PushBack(messageExt)
+	}
+
+	return pullResult, nil
 }
 
 func (r *DefaultClient) closeChannel(addr string, channel *net2.Channel) {

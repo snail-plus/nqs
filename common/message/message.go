@@ -1,11 +1,17 @@
 package message
 
+import "fmt"
+
 type Message struct {
 	Topic         string
 	Body          []byte
 	Flag          int32
 	transactionId string
 	properties    map[string]string
+}
+
+func (r Message) String() string {
+	return fmt.Sprintf("Message[topic: %s, Body: %s]", r.Topic, string(r.Body))
 }
 
 type MessageExt struct {

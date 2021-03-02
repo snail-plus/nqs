@@ -36,18 +36,25 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	log.Infof("requestHeader: %+v", requestHeader)
 
 	getMessage := s.Store.GetMessage(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueOffset, requestHeader.QueueId, requestHeader.MaxMsgNums)
+	getMessageStatus := int32(getMessage.Status)
+
 	if getMessage.Status != store.Found {
 		response.Code = int32(getMessage.Status)
 		return
 	}
 
 	body := s.readGetMessageResult(getMessage)
+
+	log.Infof("queueOffset: %d, founded msg size: %d, NextBeginOffset: %d, getMessageStatus: %d, response len: %d",
+		requestHeader.QueueOffset, getMessage.GetMsgSize(), getMessage.NextBeginOffset, getMessageStatus, len(body))
+
 	responseHeader := message.PullMessageResponseHeader{
 		NextBeginOffset: getMessage.NextBeginOffset,
 		MinOffset:       getMessage.MinOffset,
 		MaxOffset:       getMessage.MaxOffset,
 	}
 
+	response.Code = getMessageStatus
 	response.CustomHeader = responseHeader
 	response.Body = body
 }
@@ -59,7 +66,10 @@ func (s *PullMessageProcessor) readGetMessageResult(getResult *store.GetMessageR
 	mapedList := getResult.MessageMapedList
 	for item := mapedList.Front(); item != nil; item = item.Next() {
 		msg := item.Value.(*store.SelectMappedBufferResult)
-		buffer.Write(msg.ByteBuffer.Bytes())
+		body := msg.ByteBuffer.Bytes()
+		buffer.Write(body)
+		log.Infof("readGetMessageResult, total Size: %d", util.BytesToInt32(body[0:4]))
 	}
+
 	return buffer.Bytes()
 }

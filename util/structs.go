@@ -8,12 +8,14 @@ import (
 	"reflect"
 )
 
+var noSuchFieldError = errors.New("No such field")
+
 func SetField(obj interface{}, name string, value interface{}) error {
 	structValue := reflect.ValueOf(obj).Elem()
 	structFieldValue := structValue.FieldByName(name)
 
 	if !structFieldValue.IsValid() {
-		return fmt.Errorf("No such field: %s in obj", name)
+		return noSuchFieldError
 	}
 
 	if !structFieldValue.CanSet() {
@@ -57,21 +59,23 @@ func SetField(obj interface{}, name string, value interface{}) error {
 	return nil
 }
 
-
 func MapToStruct(m map[string]interface{}, obj interface{}) error {
 	index := 0
 	for k, v := range m {
-		index ++
+		index++
 		err := SetField(obj, k, v)
-		if err != nil && index == len(m){
+		if err == noSuchFieldError {
+			continue
+		}
+
+		if err != nil && index == len(m) {
 			return err
 		}
 	}
 	return nil
 }
 
-
-func StructToMap(obj interface{}) map[string]interface{}{
+func StructToMap(obj interface{}) map[string]interface{} {
 	obj1 := reflect.TypeOf(obj)
 	obj2 := reflect.ValueOf(obj)
 	if obj1 == nil {
@@ -85,7 +89,7 @@ func StructToMap(obj interface{}) map[string]interface{}{
 	return data
 }
 
-func DeepCopy(dst,src interface{}) error {
+func DeepCopy(dst, src interface{}) error {
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(src); err != nil {
 		return err
