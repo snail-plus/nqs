@@ -49,7 +49,7 @@ func main() {
 			}
 
 			log.Infof("发送 response: %+v", response)
-			time.Sleep(10 * time.Second)
+			time.Sleep(100 * time.Millisecond)
 			index++
 		}
 
@@ -74,8 +74,8 @@ func main() {
 	go func() {
 		var offset int64 = 0
 		for {
-			time.Sleep(5 * time.Second)
-			pullResult, err := defaultClient.PullMessage(addr, "testTopic", offset, 1, 20)
+			time.Sleep(1 * time.Second)
+			pullResult, err := defaultClient.PullMessage(addr, "testTopic", offset, 1, 200)
 			if err != nil {
 				log.Infof("PullMessage error : %s", err.Error())
 				continue

@@ -18,8 +18,8 @@ type FlushRealTimeService struct {
 	printTimes int64
 }
 
-func (r FlushRealTimeService) start() {
-	log.Info("start flush service")
+func (r *FlushRealTimeService) start() {
+	log.Info("start commitLog flush service")
 	r.Name = "flush service"
 	r.DaemonTask.Run = r.run
 	r.Start()

@@ -9,18 +9,17 @@ import (
 	"nqs/remoting/protocol"
 	"nqs/util"
 	"strconv"
+	"sync"
 )
-
 
 type Remote interface {
 	InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error)
-	InvokeAsync(addr string, command *protocol.Command,  timeoutMillis int64, invokeCallback func(interface{}))
+	InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(interface{}))
 
 	AddChannel(conn net.Conn) *net2.Channel
 }
 
-var ResponseMap = map[int32]*ResponseFuture{}
-
+var ResponseMap = sync.Map{} /*map[int32]*ResponseFuture{}*/
 
 func processMessageReceived(command *protocol.Command, channel net2.Channel) {
 
@@ -42,20 +41,22 @@ func processMessageReceived(command *protocol.Command, channel net2.Channel) {
 }
 
 func processResponseCommand(command *protocol.Command, channel net2.Channel) {
-	future := ResponseMap[command.Opaque]
-	if future == nil {
+	value, ok := ResponseMap.Load(command.Opaque)
+
+	if !ok {
 		log.Errorf("Opaque %d 找不到对应的请求,address: %s", command.Opaque, channel.RemoteAddr())
 		return
 	}
-
+	future := value.(*ResponseFuture)
 	future.PutResponse(*command)
+	ResponseMap.Delete(command.Opaque)
 }
 
 func ReadMessage(channel net2.Channel) {
 	conn := channel.Conn
 	decoder := channel.Decoder
 
-	for ; !channel.Closed;{
+	for !channel.Closed {
 		head, err := net2.ReadFully(net2.HeadLength, conn)
 		if err != nil {
 			log.Error(err.Error())
@@ -98,6 +99,5 @@ func ReadMessage(channel net2.Channel) {
 
 		})
 	}
-
 
 }

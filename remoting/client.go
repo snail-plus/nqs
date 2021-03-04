@@ -54,13 +54,14 @@ func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeo
 		return nil, err
 	}
 
-	ResponseMap[command.Opaque] = &ResponseFuture{
+	future := &ResponseFuture{
 		Opaque:         command.Opaque,
 		Conn:           channel.Conn,
 		BeginTimestamp: time.Now().Unix(),
 		TimeoutMillis:  timeoutMillis,
 		DoneChan:       make(chan bool),
 	}
+	ResponseMap.Store(command.Opaque, future)
 
 	err = channel.WriteCommand(command)
 
@@ -69,7 +70,7 @@ func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeo
 		return nil, err
 	}
 
-	response, err := ResponseMap[command.Opaque].WaitResponse(timeoutMillis)
+	response, err := future.WaitResponse(timeoutMillis)
 	return response, err
 }
 
