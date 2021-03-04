@@ -110,6 +110,11 @@ func (r *ConsumeQueue) Flush() bool {
 	return r.mappedFileQueue.Flush()
 }
 
+func (r *ConsumeQueue) load() bool {
+	result := r.mappedFileQueue.Load()
+	return result
+}
+
 func (r ConsumeQueue) GetMinOffsetInQueue() int64 {
 	return r.minLogicOffset / CqStoreUnitSize
 }
@@ -129,4 +134,79 @@ func (r ConsumeQueue) GetIndexBuffer(startIndex int64) *SelectMappedBufferResult
 	}
 
 	return nil
+}
+
+func (r *ConsumeQueue) recover() {
+	mappedFiles := r.mappedFileQueue.mappedFiles
+	if mappedFiles == nil || mappedFiles.Len() == 0 {
+		log.Info("ConsumeQueue file is empty")
+		return
+	}
+
+	// 从倒数第二个文件开始查看 这里从倒数第三个是防止文件破损
+	index := mappedFiles.Len() - 3
+	if index < 0 {
+		index = 0
+	}
+
+	mappedFile := r.mappedFileQueue.getMappedFileByIndex(index)
+	buffer := mappedFile.GetFileBuffer()
+
+	processOffset := mappedFile.fileFromOffset
+	var mappedFileOffset int64 = 0
+
+	for {
+		for i := 0; i < mappedFileSizeConsumeQueue; i += CqStoreUnitSize {
+			var offset int64
+			binary.Read(buffer, binary.BigEndian, &offset)
+			var size int32
+			binary.Read(buffer, binary.BigEndian, &size)
+
+			if i == 0 && size == 0 {
+				log.Infof("当前文件: %s 内容有错误, 起始文件头部为o", mappedFile.fileName)
+				break
+			}
+
+			var tagsCode int64
+			binary.Read(buffer, binary.BigEndian, &tagsCode)
+
+			if size <= 0 {
+				mappedFile.wrotePosition = int32(i)
+				log.Infof("recover current consume queue file over1,file: %s", mappedFile.fileName)
+				break
+			}
+
+			mappedFileOffset = int64(i) + int64(CqStoreUnitSize)
+			r.maxPhysicOffset = offset + int64(size)
+		}
+
+		// 不等 说明该队列索引文件只是写了部分 是最后一次写的文件 终止恢复
+		if mappedFileOffset != mappedFileSizeConsumeQueue {
+			log.Infof("recover current consume queue file over2,file: %s", mappedFile.fileName)
+			break
+		}
+
+		index++
+		if index >= mappedFiles.Len() {
+			log.Infof("recover last consume queue file over, file: %s", mappedFile.fileName)
+			break
+		}
+
+		mappedFile = r.mappedFileQueue.getMappedFileByIndex(index)
+		buffer = mappedFile.GetFileBuffer()
+
+		processOffset = mappedFile.fileFromOffset
+		mappedFileOffset = 0
+		log.Infof("recover next consume queue file over, file: %s", mappedFile.fileName)
+	}
+
+	processOffset += mappedFileOffset
+	r.mappedFileQueue.flushedWhere = processOffset
+	mappedFile.wrotePosition = int32(mappedFileOffset)
+	log.Infof("ConsumeQueue flushedWhere: %d,wrotePosition: %d", processOffset, mappedFile.wrotePosition)
+
+}
+
+func (r *ConsumeQueue) Shutdown() {
+	r.mappedFileQueue.Shutdown()
 }

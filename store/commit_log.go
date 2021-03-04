@@ -55,9 +55,10 @@ func (r CommitLog) Load() bool {
 	return r.mappedFileQueue.Load()
 }
 
-func (r CommitLog) Shutdown() {
+func (r *CommitLog) Shutdown() {
 	log.Info("Shutdown commitLog")
 	r.flushCommitLogService.shutdown()
+	r.mappedFileQueue.Shutdown()
 }
 
 func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
@@ -131,7 +132,7 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 	var totalSize int32
 	binary.Read(byteBuff, binary.BigEndian, &totalSize)
 
-	log.Infof("build index, totalSize: %d", totalSize)
+	log.Infof("CheckMessage, totalSize: %d", totalSize)
 
 	var magicCode int32
 	binary.Read(byteBuff, binary.BigEndian, &magicCode)
@@ -264,6 +265,76 @@ func (r CommitLog) RollNextFile(offset int64) int64 {
 	return offset + commitLogFileSize - offset%commitLogFileSize
 }
 
+func (r *CommitLog) recoverNormally(maxPhyOffsetOfConsumeQueue int64) {
+	mappedFiles := r.mappedFileQueue.mappedFiles
+	if mappedFiles == nil || mappedFiles.Len() == 0 {
+		log.Infof("no commit log")
+		return
+	}
+
+	// 从倒数第三个文件开始恢复 目的： 1 加快后续读写性能 2 校验文件是否正确
+	index := mappedFiles.Len() - 3
+	if index < 0 {
+		index = 0
+	}
+
+	mappedFile := r.mappedFileQueue.getMappedFileByIndex(index)
+	buffer := mappedFile.GetFileBuffer()
+	processOffset := mappedFile.fileFromOffset
+	var mappedFileOffset int64 = 0
+
+	// TODO 修复文件写指针
+
+	/*fixCommitLogWriteOffset := func(commitLogOffset, fileStartOffset int64, msgSize int32) int32 {
+		return int32(commitLogOffset - fileStartOffset) + msgSize
+	}*/
+
+	i := 0
+	for {
+		dispatchRequest := r.CheckMessage(buffer, false, false)
+		if i == 0 && dispatchRequest.msgSize == 0 {
+			log.Errorf("文件: %s, 起始内容有误", mappedFile.fileName)
+		}
+		i++
+
+		size := dispatchRequest.msgSize
+		if !dispatchRequest.success {
+			log.Infof("recover physics file: %s end", mappedFile.fileName)
+			break
+		}
+
+		// 这里为0 说明到了文件尾部
+		if size == 0 {
+			index++
+			if index >= mappedFiles.Len() {
+				// 修复写指针
+				log.Infof("recover last 3 physics file over, last mapped file: %s, wrotePosition: %d",
+					mappedFile.fileName, mappedFile.wrotePosition)
+				break
+			}
+
+			mappedFile = r.mappedFileQueue.getMappedFileByIndex(index)
+			buffer = mappedFile.GetFileBuffer()
+			processOffset = mappedFile.fileFromOffset
+			mappedFileOffset = 0
+			i = 0
+			log.Infof("recover next physics file: %s", mappedFile.fileName)
+		} else {
+			mappedFileOffset += int64(size)
+		}
+	}
+
+	processOffset += mappedFileOffset
+	r.mappedFileQueue.flushedWhere = processOffset
+	mappedFile.wrotePosition = int32(mappedFileOffset)
+	mappedFile.flushedPosition = int32(mappedFileOffset)
+
+	if maxPhyOffsetOfConsumeQueue > processOffset {
+		log.Warnf("maxPhyOffsetOfConsumeQueue(%d) >= processOffset(%d), need truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset)
+	}
+
+}
+
 type DefaultAppendMessageCallback struct {
 	msgIdMemory bytes.Buffer
 
@@ -337,8 +408,6 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	// 7 physicalOffset 8
 	msgStoreItemMemory.Write(util.Int64ToBytes(fileFromOffset + int64(currentOffset)))
 	// 8 sysFlag 4
-
-	log.Infof("")
 	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.SysFlag)))
 	// 9 bornTimestamp 8
 	msgStoreItemMemory.Write(util.Int64ToBytes(ext.BornTimestamp))

@@ -22,15 +22,13 @@ func Initialize() *BrokerController {
 	}
 
 	b.Store = store.NewStore()
-	b.Store.Start()
-
 	load := b.Store.Load()
 	if !load {
 		panic("store load 失败")
 	}
+	b.Store.Start()
 
 	b.Server = defaultServer
-
 	defaultServer.Start(b)
 
 	return b

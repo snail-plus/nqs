@@ -35,7 +35,7 @@ func openFile(filePath string, flags int) (*os.File, error) {
 func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 
 	log.Infof("prepare init mapped file: %s, fileSize: %d", fileName, fileSize)
-	file, err := openFile(fileName, os.O_RDWR|os.O_CREATE|os.O_TRUNC)
+	file, err := openFile(fileName, os.O_RDWR|os.O_CREATE)
 	if err != nil {
 		return nil, err
 	}
@@ -175,4 +175,46 @@ func (r *MappedFile) selectMappedBufferBySize(pos, size int32) *SelectMappedBuff
 	}
 
 	return nil
+}
+
+func (r *MappedFile) GetFileBuffer() *bytes.Buffer {
+	buffer := bytes.NewBuffer(r.mmap[:])
+	return buffer
+}
+
+func (r *MappedFile) Shutdown() {
+	err := r.mmap.Unmap()
+	if err != nil {
+		log.Infof("文件Unmap错误, %s", r.fileName)
+		return
+	}
+
+	err = r.file.Sync()
+	if err != nil {
+		log.Infof("文件Sync错误, %s", r.fileName)
+		return
+	}
+
+	err = r.file.Close()
+	if err != nil {
+		log.Infof("文件Close错误, %s", r.fileName)
+		return
+	}
+
+	log.Infof("Shutdown MappedFile: %s", r.fileName)
+}
+
+func (r *MappedFile) destroy() {
+	log.Infof("begin destroy file: %s", r.fileName)
+	err := r.mmap.Unmap()
+	if err != nil {
+		log.Infof("文件Unmap错误, %s", r.fileName)
+	}
+
+	err = os.Remove(r.fileName)
+	if err != nil {
+		log.Infof("Remove错误, %s", r.fileName)
+	}
+
+	log.Infof("end destroy file: %s", r.fileName)
 }

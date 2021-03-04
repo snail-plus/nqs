@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"encoding/binary"
 	"github.com/edsrzf/mmap-go"
+	"io/ioutil"
 	"nqs/common"
 	"nqs/util"
 	"os"
@@ -17,14 +18,14 @@ var testData = []byte("0123456789ABCDEF")
 var testPath = filepath.Join(os.TempDir(), "testdata")
 
 func init() {
-	f := openFile(os.O_RDWR | os.O_CREATE | os.O_TRUNC)
+	f := openFile(testPath, os.O_RDWR|os.O_CREATE|os.O_TRUNC)
 	f.Write(testData)
 	f.Close()
 }
 
-func openFile(flags int) *os.File {
+func openFile(filePath string, flags int) *os.File {
 	println(testPath)
-	f, err := os.OpenFile(testPath, flags, 0644)
+	f, err := os.OpenFile(filePath, flags, 0644)
 	if err != nil {
 		newF, _ := os.Create(testPath)
 		return newF
@@ -32,10 +33,33 @@ func openFile(flags int) *os.File {
 	return f
 }
 
-func TestRead(t *testing.T) {
-	f := openFile(os.O_RDWR)
+func TestRead4(t *testing.T) {
+	f := openFile("C:\\Users\\wj\\AppData\\Local\\Temp\\store\\commitlog\\00000000000000000000", os.O_RDWR)
 	defer f.Close()
-	mmap, err := mmap.MapRegion(f, 1024*1024*1024, mmap.RDWR, 0, 0)
+
+	mMap, err := mmap.MapRegion(f, 1024*1024*1024, mmap.RDWR, 0, 0)
+	if err != nil {
+		t.Errorf("error mapping: %s", err)
+		return
+	}
+
+	/*	var b = 23
+		copy(mMap[0:4], util.Int32ToBytes(b))
+		println("写入数据")
+	*/
+	var a int32
+	buffer := bytes.NewBuffer(mMap[0:4])
+	binary.Read(buffer, binary.BigEndian, &a)
+	println(a)
+
+	mMap.Flush()
+	mMap.Unmap()
+}
+
+func TestRead(t *testing.T) {
+	f := openFile(testPath, os.O_RDWR)
+	defer f.Close()
+	mmap, err := mmap.MapRegion(f, 1024, mmap.RDWR, 0, 0)
 	if err != nil {
 		t.Errorf("error mapping: %s", err)
 		return
@@ -46,19 +70,8 @@ func TestRead(t *testing.T) {
 		t.Errorf("mmap != testData: %q, %q", mmap, testData)
 	}*/
 
-	mmap[9] = 'X'
-	mmap.Flush()
-
-	/*fileData, err := ioutil.ReadAll(f)
-	if err != nil {
-		t.Errorf("error reading file: %s", err)
-	}
-	if !bytes.Equal(fileData, []byte("012345678XABCDEF")) {
-		t.Errorf("file wasn't modified")
-	}*/
-
-	// leave things how we found them
-	mmap[9] = '9'
+	// mmap[9] = 'X'
+	copy(mmap[0:1], "X")
 	mmap.Flush()
 }
 
@@ -124,6 +137,17 @@ func TestA(t *testing.T) {
 }
 
 func TestB(t *testing.T) {
+
+	dirs, err := ioutil.ReadDir("C:\\Users\\wj\\AppData\\Local\\Temp\\store\\consumequeue")
+	if err != nil {
+		return
+	}
+
+	for _, item := range dirs {
+		println(item.Name())
+		println(item)
+	}
+
 	xx := []byte{1, 2, 3}
 	buffer := bytes.NewBuffer(xx)
 

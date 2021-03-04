@@ -61,8 +61,8 @@ func (r *MappedFileQueue) Load() bool {
 			return false
 		}
 
-		file.wrotePosition = 0
-		file.flushedPosition = 0
+		file.wrotePosition = r.mappedFileSize
+		file.flushedPosition = r.mappedFileSize
 		r.mappedFiles.PushBack(file)
 	}
 
@@ -230,6 +230,13 @@ func (r MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate
 	}
 
 	return file
+}
+
+func (r *MappedFileQueue) Shutdown() {
+	for item := r.mappedFiles.Front(); item != nil; item = item.Next() {
+		mappedFile := item.Value.(*MappedFile)
+		mappedFile.Shutdown()
+	}
 }
 
 func initDir(targetPath string) {

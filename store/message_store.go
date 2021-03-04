@@ -4,8 +4,10 @@ import (
 	"container/list"
 	"encoding/binary"
 	log "github.com/sirupsen/logrus"
+	"io/ioutil"
 	"math"
 	"nqs/common"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -32,7 +34,7 @@ type DefaultMessageStore struct {
 	commitLog         CommitLog
 	stop              bool
 
-	rePutMessageService RePutMessageService
+	rePutMessageService *RePutMessageService
 
 	dispatcherList *list.List
 
@@ -40,8 +42,17 @@ type DefaultMessageStore struct {
 }
 
 func (r *DefaultMessageStore) Load() bool {
-	r.commitLog.Load()
-	return true
+	var result = true
+	result = result && r.commitLog.Load()
+
+	result = result && r.loadConsumeQueue()
+
+	if result {
+		r.recover()
+		log.Info("load done")
+	}
+
+	return result
 }
 
 func NewStore() *DefaultMessageStore {
@@ -51,7 +62,7 @@ func NewStore() *DefaultMessageStore {
 	defaultStore.topicQueueTable = map[string]int64{}
 	defaultStore.consumeQueueTable = map[string]map[int32]*ConsumeQueue{}
 
-	defaultStore.rePutMessageService = RePutMessageService{commitLog: defaultStore.commitLog, msgStore: defaultStore}
+	defaultStore.rePutMessageService = &RePutMessageService{commitLog: defaultStore.commitLog, msgStore: defaultStore}
 
 	defaultStore.dispatcherList = list.New()
 	defaultStore.dispatcherList.PushBack(CommitLogDispatcherBuildConsumeQueue{store: defaultStore})
@@ -67,11 +78,24 @@ func (r *DefaultMessageStore) Start() {
 
 	r.commitLog.Start()
 
+	// 恢复 rePutMessageService 的reput 指针
+	var maxPhysicalPosInLogicQueue = r.commitLog.GetMinOffset()
+	for _, maps := range r.consumeQueueTable {
+		for _, logic := range maps {
+			if logic.maxPhysicOffset > maxPhysicalPosInLogicQueue {
+				maxPhysicalPosInLogicQueue = logic.maxPhysicOffset
+			}
+		}
+	}
+
+	if maxPhysicalPosInLogicQueue < 0 {
+		maxPhysicalPosInLogicQueue = 0
+	}
+
+	r.rePutMessageService.RePutFromOffset = maxPhysicalPosInLogicQueue
 	r.rePutMessageService.Start()
 
 	r.flushConsumeQueue.start()
-
-	r.recoverTopicQueueTable()
 
 }
 
@@ -79,6 +103,13 @@ func (r *DefaultMessageStore) Shutdown() {
 	r.stop = true
 
 	r.commitLog.Shutdown()
+
+	for _, maps := range r.consumeQueueTable {
+		for _, logic := range maps {
+			logic.Shutdown()
+		}
+	}
+
 }
 
 func (r *DefaultMessageStore) PutMessages(messageExt *MessageExtBrokerInner) *PutMessageResult {
@@ -176,7 +207,64 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 }
 
 func (r *DefaultMessageStore) recoverTopicQueueTable() {
-	r.topicQueueTable = map[string]int64{}
+	// minPhyOffset := r.commitLog.GetMinOffset()
+	for _, maps := range r.consumeQueueTable {
+		for _, logic := range maps {
+			key := logic.topic + strconv.Itoa(int(logic.queueId))
+			topicQueueTable[key] = logic.GetMaxOffsetInQueue()
+			log.Infof("key: %s, offset: %d", key, logic.GetMaxOffsetInQueue())
+			// TODO correctMinOffset
+		}
+	}
+}
+
+func (r *DefaultMessageStore) loadConsumeQueue() bool {
+	consumequeuePath := BasePath + "/consumequeue"
+	fileTopics, err := ioutil.ReadDir(consumequeuePath)
+	if err != nil {
+		log.Errorf("read consumequeue dir error: %s", err.Error())
+		return false
+	}
+
+	for _, fileTopic := range fileTopics {
+		topicDir := consumequeuePath + "/" + fileTopic.Name()
+		queueDirs, err := ioutil.ReadDir(topicDir)
+		if err != nil {
+			log.Errorf("read topicDir: %s error: %s", topicDir, err.Error())
+			return false
+		}
+
+		topic := fileTopic.Name()
+
+		for _, queueDir := range queueDirs {
+			queueId, err := strconv.Atoi(queueDir.Name())
+			if err != nil {
+				log.Warnf("queueName: %s is not int", queueDir.Name())
+				continue
+			}
+
+			cq := NewConsumeQueue(r, topic, int32(queueId), consumequeuePath)
+			if !cq.load() {
+				return false
+			}
+			r.putConsumeQueue(cq)
+		}
+
+	}
+
+	return true
+}
+
+func (r *DefaultMessageStore) putConsumeQueue(consumeQueue *ConsumeQueue) {
+	topic := consumeQueue.topic
+	queueId := consumeQueue.queueId
+
+	if item, ok := r.consumeQueueTable[topic]; ok {
+		item[queueId] = consumeQueue
+	} else {
+		r.consumeQueueTable[topic] = map[int32]*ConsumeQueue{queueId: consumeQueue}
+	}
+
 }
 
 func (r *DefaultMessageStore) DoDispatch(request *DispatchRequest) {
@@ -189,6 +277,28 @@ func (r *DefaultMessageStore) DoDispatch(request *DispatchRequest) {
 
 func (r DefaultMessageStore) nextOffsetCorrection(oldOffset, newOffset int64) int64 {
 	return newOffset
+}
+
+func (r *DefaultMessageStore) recover() {
+	maxPhyOffsetConsumeQueue := r.recoverConsumeQueue()
+	log.Infof("recover maxPhyOffsetConsumeQueue: %d", maxPhyOffsetConsumeQueue)
+
+	r.commitLog.recoverNormally(maxPhyOffsetConsumeQueue)
+	r.recoverTopicQueueTable()
+}
+
+func (r *DefaultMessageStore) recoverConsumeQueue() int64 {
+	var maxPyOffset int64 = -1
+	for _, maps := range r.consumeQueueTable {
+		for _, logic := range maps {
+			logic.recover()
+			if logic.maxPhysicOffset > maxPyOffset {
+				maxPyOffset = logic.maxPhysicOffset
+			}
+		}
+	}
+
+	return maxPyOffset
 }
 
 func (r *DefaultMessageStore) persist() {
@@ -206,10 +316,10 @@ type RePutMessageService struct {
 	msgStore        MessageStore
 }
 
-func (r RePutMessageService) Start() {
+func (r *RePutMessageService) Start() {
 	r.DaemonTask.Name = "rePut"
 	r.DaemonTask.Run = func() {
-		log.Infof("start rePut service")
+		log.Infof("start rePut service,RePutFromOffset: %d", r.RePutFromOffset)
 		for !r.IsStopped() {
 			time.Sleep(1 * time.Second)
 			r.doRePut()
@@ -233,7 +343,7 @@ func (r *RePutMessageService) doRePut() {
 		}
 
 		r.RePutFromOffset = result.startOffset
-		log.Infof("result, startOffset %d, byte length: %d, size: %d", result.startOffset, result.ByteBuffer.Len(), result.size)
+		log.Infof("doRePut, result, startOffset %d, byte length: %d, size: %d", result.startOffset, result.ByteBuffer.Len(), result.size)
 
 		for readSize := 0; readSize < int(result.size) && doNext; {
 			dispatchRequest := r.commitLog.CheckMessage(result.ByteBuffer, false, false)
