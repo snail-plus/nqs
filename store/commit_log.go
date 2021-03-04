@@ -132,8 +132,6 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 	var totalSize int32
 	binary.Read(byteBuff, binary.BigEndian, &totalSize)
 
-	log.Infof("CheckMessage, totalSize: %d", totalSize)
-
 	var magicCode int32
 	binary.Read(byteBuff, binary.BigEndian, &magicCode)
 	switch magicCode {

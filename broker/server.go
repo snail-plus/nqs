@@ -14,17 +14,20 @@ import (
 )
 
 type DefaultServer struct {
-	lock sync.Mutex
-	ChannelMap map[string]*net2.Channel
-	Encoder protocol.Encoder
-	Decoder protocol.Decoder
+	lock        sync.Mutex
+	ChannelMap  map[string]*net2.Channel
+	Encoder     protocol.Encoder
+	Decoder     protocol.Decoder
 	ResponseMap map[int32]*remoting.ResponseFuture
 }
 
 func (r *DefaultServer) registerProcessor(b *BrokerController) {
-	processor.PMap[code.Heartbeat] =  &processor.HeartbeatProcessor{Name: "Heartbeat"}
-	processor.PMap[code.SendMessage] =  &processor.SendMessageProcessor{Name: "Send", Store: b.Store}
+	processor.PMap[code.Heartbeat] = &processor.HeartbeatProcessor{Name: "Heartbeat"}
+	processor.PMap[code.SendMessage] = &processor.SendMessageProcessor{Name: "Send", Store: b.Store}
 	processor.PMap[code.PullMessage] = &processor.PullMessageProcessor{Name: "Pull", Store: b.Store}
+
+	processor.PMap[code.QueryConsumerOffset] = &processor.ConsumerManageProcessor{Name: "Pull", Store: b.Store}
+
 }
 
 func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error) {
@@ -35,11 +38,11 @@ func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeo
 	}
 
 	r.ResponseMap[command.Opaque] = &remoting.ResponseFuture{
-		Opaque:          command.Opaque,
-		Conn:            channel.Conn,
-		BeginTimestamp:  time.Now().Unix(),
-		TimeoutMillis:   timeoutMillis,
-		DoneChan:        make(chan bool),
+		Opaque:         command.Opaque,
+		Conn:           channel.Conn,
+		BeginTimestamp: time.Now().Unix(),
+		TimeoutMillis:  timeoutMillis,
+		DoneChan:       make(chan bool),
 	}
 
 	err := channel.WriteCommand(command)
@@ -51,7 +54,7 @@ func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeo
 	return response, err
 }
 
-func (r *DefaultServer) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(interface{}))  {
+func (r *DefaultServer) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(interface{})) {
 }
 
 func (r *DefaultServer) AddChannel(conn net.Conn) *net2.Channel {
@@ -59,14 +62,12 @@ func (r *DefaultServer) AddChannel(conn net.Conn) *net2.Channel {
 	channel := net2.Channel{
 		Encoder: r.Encoder,
 		Decoder: r.Decoder,
-		Conn: conn,
+		Conn:    conn,
 	}
 
 	r.ChannelMap[conn.RemoteAddr().String()] = &channel
 	return &channel
 }
-
-
 
 func (r *DefaultServer) Start(b *BrokerController) {
 
@@ -77,8 +78,8 @@ func (r *DefaultServer) Start(b *BrokerController) {
 		panic(err)
 	}
 
-    go func() {
-    	for {
+	go func() {
+		for {
 			conn, err := listen.Accept()
 			if err != nil {
 				break
@@ -100,6 +101,3 @@ func (r *DefaultServer) handleConnection(conn net.Conn) {
 	remoting.ReadMessage(*channel)
 
 }
-
-
-

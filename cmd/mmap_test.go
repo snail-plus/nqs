@@ -158,3 +158,11 @@ func TestB(t *testing.T) {
 	}
 
 }
+
+func TestABB(t *testing.T) {
+	err := util.StrToFile("你好", "C:\\Users\\wj\\Desktop\\abg.txt")
+	if err != nil {
+		println(err.Error())
+	}
+
+}
