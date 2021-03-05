@@ -1,4 +1,4 @@
-package consumer
+package inner
 
 type PullStatus int
 

@@ -4,7 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
-	"nqs/client/consumer"
+	"nqs/client/inner"
 	"nqs/code"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
@@ -85,7 +85,7 @@ func main() {
 				offset = pullResult.NextBeginOffset
 			}
 
-			if pullResult.PullStatus != consumer.Found {
+			if pullResult.PullStatus != inner.Found {
 				log.Infof("pull code: %d", int32(pullResult.PullStatus))
 				continue
 			}

@@ -2,7 +2,6 @@ package broker
 
 import (
 	"github.com/henrylee2cn/goutil/calendar/cron"
-	log "github.com/sirupsen/logrus"
 	"nqs/remoting"
 	net2 "nqs/remoting/channel"
 	"nqs/remoting/protocol"
@@ -57,7 +56,6 @@ func (r BrokerController) startTask() {
 
 	r.cron.AddFunc("*/10 * * * * ?", func() {
 		r.ConsumerOffsetManager.Persist()
-		log.Infof("persist consumerOffset")
 	})
 
 }

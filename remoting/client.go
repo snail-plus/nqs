@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net"
-	"nqs/client/consumer"
+	"nqs/client/inner"
 	"nqs/code"
 	"nqs/common/message"
 	"nqs/common/protocol/heartbeat"
@@ -25,6 +25,18 @@ type DefaultClient struct {
 	ChannelMap map[string]*net2.Channel
 	Encoder    protocol.Encoder
 	Decoder    protocol.Decoder
+}
+
+func CreateClient() *DefaultClient {
+	return &DefaultClient{
+		ChannelMap: map[string]*net2.Channel{},
+		Encoder:    &protocol.JsonEncoder{},
+		Decoder:    &protocol.JsonDecoder{},
+	}
+}
+
+func (r DefaultClient) Start() {
+
 }
 
 func (r *DefaultClient) getOrCreateChannel(addr string) (*net2.Channel, error) {
@@ -109,7 +121,7 @@ func (r *DefaultClient) SendHeartbeat(addr string) (*protocol.Command, error) {
 	return response, nil
 }
 
-func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, maxMsgCount int32) (*consumer.PullResult, error) {
+func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, maxMsgCount int32) (*inner.PullResult, error) {
 	header := message.PullMessageRequestHeader{}
 	header.Topic = topic
 	header.QueueId = queueId
@@ -133,7 +145,7 @@ func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, m
 		return nil, err
 	}
 
-	pullResult := &consumer.PullResult{MsgFoundList: list.New(),
+	pullResult := &inner.PullResult{MsgFoundList: list.New(),
 		NextBeginOffset: responseHeader.NextBeginOffset, MinOffset: responseHeader.MinOffset,
 		MaxOffset: responseHeader.MaxOffset,
 	}

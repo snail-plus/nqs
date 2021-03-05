@@ -1,4 +1,4 @@
-package consumer
+package inner
 
 import "container/list"
 

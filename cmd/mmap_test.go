@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"github.com/edsrzf/mmap-go"
 	"io/ioutil"
+	"nqs/client/consumer"
 	"nqs/common"
 	"nqs/util"
 	"os"
@@ -159,8 +160,34 @@ func TestB(t *testing.T) {
 
 }
 
+type AB interface {
+	a()
+}
+
+type BV interface {
+	AB
+}
+
+type BN struct {
+}
+
+func (r BN) a() {
+
+}
+
 func TestABB(t *testing.T) {
-	err := util.StrToFile("你好", "C:\\Users\\wj\\Desktop\\abg.txt")
+
+	c, err := consumer.NewPushConsumer("test")
+	if err != nil {
+		return
+	}
+
+	c.Start()
+
+	var b AB = &BN{}
+	b.a()
+
+	err = util.StrToFile("你好", "C:\\Users\\wj\\Desktop\\abg.txt")
 	if err != nil {
 		println(err.Error())
 	}
