@@ -89,7 +89,6 @@ func (r *MappedFile) AppendMessageInner(msg *MessageExtBrokerInner, callback App
 	if currentPos < r.fileSize {
 		appendMessageResult = callback.DoAppend(r.MappedByte(currentPos), currentPos, r.fileFromOffset, r.fileSize-currentPos, msg)
 		r.wrotePosition = atomic.AddInt32(&r.wrotePosition, appendMessageResult.WroteBytes)
-		log.Infof("wrotePosition %d", r.wrotePosition)
 		r.storeTimestamp = util.GetUnixTime()
 		return appendMessageResult
 	}
@@ -117,7 +116,7 @@ func (r *MappedFile) Flush() int32 {
 		if err != nil {
 			log.Errorf("mmap flush error: %d", err.Error())
 		}
-		log.Infof("flush pos is %d", value)
+		log.Infof("fileName: %s,flush pos is %d", r.fileName, value)
 		return value
 	}
 

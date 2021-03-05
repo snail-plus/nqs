@@ -120,7 +120,7 @@ func (r *DefaultMessageStore) PutMessages(messageExt *MessageExtBrokerInner) *Pu
 func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int64, queueId, maxMsgNums int32) *GetMessageResult {
 
 	getResult := &GetMessageResult{}
-	getResult.Status = OffsetFoundNull
+	getResult.Status = NoMessageInQueue
 	getResult.NextBeginOffset = offset
 
 	consumeQueue := r.findConsumeQueue(topic, queueId)
@@ -168,7 +168,6 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 	var i int32 = 0
 	var nextBeginOffset int64 = 0
 	buffer := bufferConsumeQueue.ByteBuffer
-	log.Infof("buffer length: %d", buffer.Len())
 	maxFilterMessageCount := maxMsgNums * CqStoreUnitSize
 	for ; i < bufferConsumeQueue.size && i < maxFilterMessageCount; i += CqStoreUnitSize {
 
@@ -212,7 +211,7 @@ func (r *DefaultMessageStore) recoverTopicQueueTable() {
 		for _, logic := range maps {
 			key := logic.topic + strconv.Itoa(int(logic.queueId))
 			topicQueueTable[key] = logic.GetMaxOffsetInQueue()
-			log.Infof("key: %s, offset: %d", key, logic.GetMaxOffsetInQueue())
+			log.Infof("recoverTopicQueueTable key: %s, offset: %d", key, logic.GetMaxOffsetInQueue())
 			// TODO correctMinOffset
 		}
 	}
@@ -335,6 +334,7 @@ func (r *RePutMessageService) doRePut() {
 		r.RePutFromOffset = commitLogMinOffset
 	}
 
+	var index = 0
 	for doNext := true; r.isCommitLogAvailable() && doNext; {
 		result := r.commitLog.GetData(r.RePutFromOffset, r.RePutFromOffset == 0)
 		if result == nil {
@@ -342,8 +342,12 @@ func (r *RePutMessageService) doRePut() {
 			continue
 		}
 
+		if index%100 == 0 {
+			log.Infof("doRePut, result, startOffset %d, byte length: %d, size: %d", result.startOffset, result.ByteBuffer.Len(), result.size)
+		}
+
+		index++
 		r.RePutFromOffset = result.startOffset
-		log.Infof("doRePut, result, startOffset %d, byte length: %d, size: %d", result.startOffset, result.ByteBuffer.Len(), result.size)
 
 		for readSize := 0; readSize < int(result.size) && doNext; {
 			dispatchRequest := r.commitLog.CheckMessage(result.ByteBuffer, false, false)
@@ -361,7 +365,6 @@ func (r *RePutMessageService) doRePut() {
 
 			r.msgStore.DoDispatch(dispatchRequest)
 			r.RePutFromOffset = r.RePutFromOffset + int64(dispatchRequest.msgSize)
-			log.Infof("RePutFromOffset %d", r.RePutFromOffset)
 			readSize += int(msgSize)
 		}
 

@@ -28,7 +28,6 @@ func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel
 		return
 	}
 
-	log.Info("收到发送请求 body: ", string(request.Body))
 	response := request.CreateResponseCommand()
 
 	inner := &store.MessageExtBrokerInner{}
@@ -51,7 +50,6 @@ func (s *SendMessageProcessor) handlePutMessageResult(putResult *store.PutMessag
 	if putResult.PutMessageStatus == store.PutOk {
 		appendResult := putResult.AppendMessageResult
 		offset := appendResult.LogicsOffset
-		log.Infof("append result LogicsOffset %d", offset)
 		responseHeader := message.SendMessageResponseHeader{QueueOffset: offset, MsgId: putResult.AppendMessageResult.MsgId}
 		response.CustomHeader = responseHeader
 		response.Code = code.Success

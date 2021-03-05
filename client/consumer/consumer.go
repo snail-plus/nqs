@@ -2,9 +2,12 @@ package consumer
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"nqs/client"
+	"nqs/client/inner"
 	"nqs/common/message"
 	"sync"
+	"time"
 )
 
 type MessageModel int
@@ -76,16 +79,21 @@ const (
 	FailedReturn
 )
 
+type ProcessQueue struct {
+	MsgCh chan []*message.MessageExt
+}
+
 type PullRequest struct {
-	consumerGroup string
-	mq            message.MessageQueue
-	nextOffset    int64
-	lockedFirst   bool
+	ConsumerGroup string
+	Mq            message.MessageQueue
+	NextOffset    int64
+	LockedFirst   bool
+	Pq            ProcessQueue
 }
 
 func (pr *PullRequest) String() string {
 	return fmt.Sprintf("[ConsumerGroup: %s, Topic: %s, MessageQueue: %d]",
-		pr.consumerGroup, pr.mq.Topic, pr.mq.QueueId)
+		pr.ConsumerGroup, pr.Mq.Topic, pr.Mq.QueueId)
 }
 
 type ConsumeType string
@@ -138,12 +146,27 @@ func (dc *defaultConsumer) persistConsumerOffset() error {
 
 type PushConsumer struct {
 	*defaultConsumer
+	ConsumeMsg func(ext []*message.MessageExt)
+	done       chan struct{}
 }
 
-func NewPushConsumer(group string) (*PushConsumer, error) {
-	dc := &defaultConsumer{consumerGroup: group, client: client.GetOrNewRocketMQClient("sss")}
-	p := &PushConsumer{defaultConsumer: dc}
-	return p, nil
+func NewPushConsumer(group, topic string) (*PushConsumer, error) {
+	dc := &defaultConsumer{
+		consumerGroup: group,
+		client:        client.GetOrNewRocketMQClient("sss"),
+		prCh:          make(chan PullRequest, 4),
+	}
+
+	dc.prCh <- PullRequest{
+		ConsumerGroup: group,
+		Mq:            message.MessageQueue{Topic: topic, QueueId: 1},
+		NextOffset:    0,
+		LockedFirst:   true,
+		Pq:            ProcessQueue{MsgCh: make(chan []*message.MessageExt, 10)},
+	}
+
+	pc := &PushConsumer{defaultConsumer: dc}
+	return pc, nil
 }
 
 func (pc *PushConsumer) PersistConsumerOffset() error {
@@ -158,5 +181,80 @@ func (pc *PushConsumer) Start() error {
 	}
 
 	pc.defaultConsumer.start()
+
+	go func() {
+		// todo start clean msg expired
+		for {
+			select {
+			case pr := <-pc.prCh:
+				go func() {
+					pc.pullMessage(&pr)
+				}()
+			case <-pc.done:
+				return
+			}
+		}
+	}()
+
 	return nil
+}
+
+func (pc *PushConsumer) pullMessage(request *PullRequest) {
+	go func() {
+		// 消息消息
+		for {
+			select {
+			case <-pc.done:
+				println("")
+			default:
+				pq := request.Pq
+				exts := <-pq.MsgCh
+				if pc.ConsumeMsg != nil {
+					pc.ConsumeMsg(exts)
+				}
+			}
+		}
+	}()
+
+	for {
+		select {
+		case <-pc.done:
+			log.Infof("push consumer close message handle.")
+			return
+		default:
+		}
+
+		// TODO 从name server 获取
+		addr := "localhost:8089"
+		for {
+			pullResult, err := pc.client.RemoteClient.PullMessage(addr, request.Mq.Topic, request.NextOffset, request.Mq.QueueId, 23)
+			if err != nil {
+				log.Errorf("err: %s", err.Error())
+				continue
+			}
+
+			switch pullResult.PullStatus {
+			case inner.Found:
+				msgFoundList := pullResult.MsgFoundList
+				if msgFoundList.Len() == 0 {
+					time.Sleep(1 * time.Second)
+					continue
+				}
+
+				log.Infof("查到消息条数：%d, NextBeginOffset: %d", msgFoundList.Len(), pullResult.NextBeginOffset)
+				msgList := make([]*message.MessageExt, 0)
+				for item := msgFoundList.Front(); item != nil; item = item.Next() {
+					msgList = append(msgList, item.Value.(*message.MessageExt))
+				}
+				request.Pq.MsgCh <- msgList
+
+				request.NextOffset = pullResult.NextBeginOffset
+			case inner.NoNewMsg:
+				time.Sleep(100 * time.Millisecond)
+			default:
+				time.Sleep(100 * time.Millisecond)
+				continue
+			}
+		}
+	}
 }

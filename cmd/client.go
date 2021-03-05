@@ -4,7 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
-	"nqs/client/inner"
+	"nqs/client/consumer"
 	"nqs/code"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
@@ -42,14 +42,18 @@ func main() {
 			command.CustomHeader = header
 			command.Body = []byte(msg)
 
-			response, err2 := defaultClient.InvokeSync(addr, command, 2000)
+			_, err2 := defaultClient.InvokeSync(addr, command, 2000)
 			if err2 != nil {
 				log.Errorf("err2: %s", err2.Error())
 				continue
 			}
 
-			log.Infof("发送 response: %+v", response)
-			time.Sleep(100 * time.Millisecond)
+			if index > 4 {
+				break
+			}
+
+			// log.Infof("发送 response: %+v", response)
+			time.Sleep(1 * time.Millisecond)
 			index++
 		}
 
@@ -71,33 +75,18 @@ func main() {
 		}
 	}()
 
-	go func() {
-		var offset int64 = 0
-		for {
-			time.Sleep(1 * time.Second)
-			pullResult, err := defaultClient.PullMessage(addr, "testTopic", offset, 1, 200)
-			if err != nil {
-				log.Infof("PullMessage error : %s", err.Error())
-				continue
-			}
+	pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
+	if err != nil {
+		panic(err)
+	}
 
-			if pullResult.NextBeginOffset > offset {
-				offset = pullResult.NextBeginOffset
-			}
-
-			if pullResult.PullStatus != inner.Found {
-				log.Infof("pull code: %d", int32(pullResult.PullStatus))
-				continue
-			}
-
-			msgs := pullResult.MsgFoundList
-			for item := msgs.Front(); item != nil; item = item.Next() {
-				msg := item.Value.(*message.MessageExt)
-				log.Infof("msg size: %d, pull 返回: %+v", msgs.Len(), msg)
-			}
-
+	pushConsumer.ConsumeMsg = func(ext []*message.MessageExt) {
+		for _, item := range ext {
+			log.Infof("收到消息: %+v", item)
 		}
-	}()
+	}
+
+	pushConsumer.Start()
 
 	time.Sleep(math.MaxInt64)
 

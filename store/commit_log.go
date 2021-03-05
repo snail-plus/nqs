@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -103,7 +104,6 @@ func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 		}
 	}
 
-	log.Infof("PutMessage ok, topic: %s", inner.Topic)
 	return &PutMessageResult{
 		PutMessageStatus:    PutOk,
 		AppendMessageResult: *appendMessageResult,
@@ -134,6 +134,7 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 
 	var magicCode int32
 	binary.Read(byteBuff, binary.BigEndian, &magicCode)
+
 	switch magicCode {
 	case MessageMagicCode:
 		break
@@ -327,6 +328,7 @@ func (r *CommitLog) recoverNormally(maxPhyOffsetOfConsumeQueue int64) {
 	mappedFile.wrotePosition = int32(mappedFileOffset)
 	mappedFile.flushedPosition = int32(mappedFileOffset)
 
+	log.Infof("last commitLog wrotePosition: %d", mappedFile.wrotePosition)
 	if maxPhyOffsetOfConsumeQueue > processOffset {
 		log.Warnf("maxPhyOffsetOfConsumeQueue(%d) >= processOffset(%d), need truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset)
 	}
@@ -340,10 +342,10 @@ type DefaultAppendMessageCallback struct {
 	maxMessageSize     int32
 	keyBuilder         strings.Builder
 	msgIdBuilder       strings.Builder
+	msgCount           int64
 }
 
 func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset int32, fileFromOffset int64, maxBlank int32, ext *MessageExtBrokerInner) *AppendMessageResult {
-	log.Infof("fileFromOffset %d DoAppend OK", fileFromOffset)
 
 	wroteOffset := fileFromOffset + int64(currentOffset)
 
@@ -436,7 +438,9 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	}
 
 	copyLength := copy(fileMap, msgStoreItemMemory.Bytes())
-	log.Infof("copyLength: %d, bodyLength: %d", copyLength, bodyLength)
+	if copyLength != msgLength {
+		log.Warnf("topic: %s, copyLength != msgLength", string(topicData))
+	}
 
 	appendResult := &AppendMessageResult{
 		WroteBytes:   int32(msgLength),
@@ -444,6 +448,11 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 		Status:       AppendOk,
 		LogicsOffset: queueOffset,
 		MsgId:        message.CreateMessageId(storeHostByte, wroteOffset),
+	}
+
+	msgCount := atomic.AddInt64(&r.msgCount, 1)
+	if msgCount%100 == 0 {
+		log.Infof("msgCount: %d, cqOffset: %d, wroteOffset: %d", msgCount, queueOffset, wroteOffset)
 	}
 
 	// next offset

@@ -8,7 +8,7 @@ import (
 )
 
 type RMQClient struct {
-	remoteClient *remoting.DefaultClient
+	RemoteClient *remoting.DefaultClient
 
 	producerMap sync.Map
 
@@ -27,7 +27,7 @@ func GetOrNewRocketMQClient(clientId string) *RMQClient {
 	actual, loaded := clientMap.Load(clientId)
 	if !loaded {
 		return &RMQClient{
-			remoteClient: remoting.CreateClient(),
+			RemoteClient: remoting.CreateClient(),
 			cron:         cron.New(),
 		}
 	}
@@ -50,6 +50,9 @@ func (r *RMQClient) Start() {
 
 	r.cron.AddFunc("*/10 * * * * ?", func() {
 		r.consumerMap.Range(func(key, value interface{}) bool {
+			if value == nil {
+				return false
+			}
 			consumer := value.(InnerConsumer)
 			consumer.PersistConsumerOffset()
 			return true

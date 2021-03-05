@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	log "github.com/sirupsen/logrus"
+	"nqs/common"
 	"nqs/util"
 )
 
@@ -15,8 +16,9 @@ const (
 )
 
 func CreateMessageId(addr []byte, offset int64) string {
-	buffer := bytes.NewBuffer(make([]byte, 8))
-	buffer.Reset()
+	buffer := common.GetBuffer()
+	defer common.BackBuffer(buffer)
+
 	buffer.Write(addr)
 	binary.Write(buffer, binary.BigEndian, offset)
 	return hex.EncodeToString(buffer.Bytes())
@@ -104,6 +106,6 @@ func DecodeMsg(byteBuffer *bytes.Buffer, isClient bool) *MessageExt {
 	msgId := CreateMessageId(storeHost, ext.CommitLogOffset)
 	ext.MsgId = msgId
 
-	log.Infof("decode msg success, storeSize: %d, bodyLength: %d, body: %s", storeSize, bodyLen, string(ext.Body))
+	log.Debugf("decode msg success, storeSize: %d, bodyLength: %d, body: %s", storeSize, bodyLen, string(ext.Body))
 	return ext
 }

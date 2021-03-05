@@ -2,6 +2,7 @@ package channel
 
 import (
 	"net"
+	"nqs/common"
 	"nqs/remoting/protocol"
 )
 
@@ -37,7 +38,14 @@ func (r *Channel) WriteCommand(command *protocol.Command) error {
 }
 
 func ReadFully(len int, conn net.Conn) ([]byte, error) {
-	b := make([]byte, len, len)
+	var b []byte
+	if len == HeadLength {
+		b = common.GetHeader()
+		defer common.BackHeader(b)
+	} else {
+		b = make([]byte, len, len)
+	}
+
 	totalCount := 0
 	for {
 		readLength, err := conn.Read(b)
