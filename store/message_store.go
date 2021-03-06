@@ -209,9 +209,9 @@ func (r *DefaultMessageStore) recoverTopicQueueTable() {
 	// minPhyOffset := r.commitLog.GetMinOffset()
 	for _, maps := range r.consumeQueueTable {
 		for _, logic := range maps {
-			key := logic.topic + strconv.Itoa(int(logic.queueId))
+			key := logic.topic + "-" + strconv.Itoa(int(logic.queueId))
 			topicQueueTable[key] = logic.GetMaxOffsetInQueue()
-			log.Infof("recoverTopicQueueTable key: %s, offset: %d", key, logic.GetMaxOffsetInQueue())
+			log.Infof("topicQueueTable key: %s, offset: %d", key, logic.GetMaxOffsetInQueue())
 			// TODO correctMinOffset
 		}
 	}

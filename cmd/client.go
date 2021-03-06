@@ -48,7 +48,7 @@ func main() {
 				continue
 			}
 
-			if index > 4 {
+			if index > 1000000 {
 				break
 			}
 
@@ -86,7 +86,7 @@ func main() {
 		}
 	}
 
-	pushConsumer.Start()
+	//pushConsumer.Start()
 
 	time.Sleep(math.MaxInt64)
 

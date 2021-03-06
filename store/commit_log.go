@@ -360,10 +360,11 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	key := r.keyBuilder.String()
 
 	var queueOffset int64
-	if tmpQueueOffset, ok := topicQueueTable[key]; ok {
-		queueOffset = tmpQueueOffset
-	} else {
-		topicQueueTable[key] = 0
+	queueOffset, ok := topicQueueTable[key]
+	if !ok {
+		queueOffset = 0
+		topicQueueTable[key] = queueOffset
+		log.Infof("topicQueueTable, key: %s 初始化为0", key)
 	}
 
 	topicData := []byte(ext.Topic)

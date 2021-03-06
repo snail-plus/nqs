@@ -10,9 +10,9 @@ import (
 type RMQClient struct {
 	RemoteClient *remoting.DefaultClient
 
-	producerMap sync.Map
+	producerMap *sync.Map
 
-	consumerMap sync.Map
+	consumerMap *sync.Map
 
 	close bool
 
@@ -29,6 +29,8 @@ func GetOrNewRocketMQClient(clientId string) *RMQClient {
 		return &RMQClient{
 			RemoteClient: remoting.CreateClient(),
 			cron:         cron.New(),
+			consumerMap:  &sync.Map{},
+			producerMap:  &sync.Map{},
 		}
 	}
 
@@ -47,6 +49,10 @@ func (r *RMQClient) RegisterConsumer(group string, consumer InnerConsumer) error
 func (r *RMQClient) Start() {
 	// schedule persist offset
 	r.cron.Start()
+
+	if r.consumerMap == nil {
+		return
+	}
 
 	r.cron.AddFunc("*/10 * * * * ?", func() {
 		r.consumerMap.Range(func(key, value interface{}) bool {

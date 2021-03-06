@@ -155,6 +155,7 @@ func NewPushConsumer(group, topic string) (*PushConsumer, error) {
 		consumerGroup: group,
 		client:        client.GetOrNewRocketMQClient("sss"),
 		prCh:          make(chan PullRequest, 4),
+		storage:       &RemoteBrokerOffsetStore{},
 	}
 
 	dc.prCh <- PullRequest{

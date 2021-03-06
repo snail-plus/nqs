@@ -6,9 +6,9 @@ type OffsetStore interface {
 	persist(mqs []*message.MessageQueue)
 }
 
-type remoteBrokerOffsetStore struct {
+type RemoteBrokerOffsetStore struct {
 }
 
-func (r *remoteBrokerOffsetStore) persist(mqs []*message.MessageQueue) {
+func (r *RemoteBrokerOffsetStore) persist(mqs []*message.MessageQueue) {
 
 }
