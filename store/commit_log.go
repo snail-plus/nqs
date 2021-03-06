@@ -108,8 +108,8 @@ func (r *CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 	}
 
 	cost := time.Since(now).Nanoseconds() / 1e6
-	if cost > 500 {
-		log.Infof("append msg cost: %v too long", cost)
+	if cost > 5 {
+		log.Warnf("append msg cost: %v too long", cost)
 	}
 
 	return &PutMessageResult{
