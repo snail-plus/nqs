@@ -24,11 +24,12 @@ const addr = "localhost:8089"
 
 func main() {
 
+	msgChan := make(chan *protocol.Command, 100)
 	// write
 	var index = 0
 	go func() {
 		for {
-			msg := "msg-" + strconv.Itoa(index)
+			msg := "msgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsg-" + strconv.Itoa(index)
 			command := protocol.CreatesRequestCommand()
 			command.Code = code.SendMessage
 
@@ -41,11 +42,7 @@ func main() {
 			command.CustomHeader = header
 			command.Body = []byte(msg)
 
-			_, err2 := defaultClient.InvokeSync(addr, command, 2000)
-			if err2 != nil {
-				log.Errorf("err2: %s", err2.Error())
-				continue
-			}
+			msgChan <- command
 
 			if index > 1000000 {
 				break
@@ -60,6 +57,23 @@ func main() {
 		}
 
 	}()
+
+	for i := 0; i < 5; i++ {
+		go func() {
+			for {
+				select {
+				case command := <-msgChan:
+					_, err2 := defaultClient.InvokeSync(addr, command, 2000)
+					if err2 != nil {
+						log.Errorf("err2: %s", err2.Error())
+						continue
+					}
+				default:
+					time.Sleep(1 * time.Second)
+				}
+			}
+		}()
+	}
 
 	const MaxErrorCount = 20
 

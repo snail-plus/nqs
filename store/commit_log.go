@@ -48,12 +48,12 @@ func NewCommitLog(store MessageStore) CommitLog {
 	return c
 }
 
-func (r CommitLog) Start() {
+func (r *CommitLog) Start() {
 	// TODO 启动定时刷磁盘
 	r.flushCommitLogService.start()
 }
 
-func (r CommitLog) Load() bool {
+func (r *CommitLog) Load() bool {
 	return r.mappedFileQueue.Load()
 }
 
@@ -63,7 +63,7 @@ func (r *CommitLog) Shutdown() {
 	r.mappedFileQueue.Shutdown()
 }
 
-func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
+func (r *CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 	r.putMessageLock.Lock()
 	defer r.putMessageLock.Unlock()
 
@@ -118,15 +118,15 @@ func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 	}
 }
 
-func (r CommitLog) GetMinOffset() int64 {
+func (r *CommitLog) GetMinOffset() int64 {
 	return r.mappedFileQueue.GetMinOffset()
 }
 
-func (r CommitLog) GetMaxOffset() int64 {
+func (r *CommitLog) GetMaxOffset() int64 {
 	return r.mappedFileQueue.GetMaxOffset()
 }
 
-func (r CommitLog) GetData(offset int64, returnFirstOnNotFound bool) *SelectMappedBufferResult {
+func (r *CommitLog) GetData(offset int64, returnFirstOnNotFound bool) *SelectMappedBufferResult {
 	mappedFile := r.mappedFileQueue.findMappedFileByOffset(offset, returnFirstOnNotFound)
 	if mappedFile == nil {
 		return nil
@@ -135,7 +135,7 @@ func (r CommitLog) GetData(offset int64, returnFirstOnNotFound bool) *SelectMapp
 	return mappedFile.selectMappedBuffer(int32(pos))
 }
 
-func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool) *DispatchRequest {
+func (r *CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool) *DispatchRequest {
 
 	var totalSize int32
 	binary.Read(byteBuff, binary.BigEndian, &totalSize)
@@ -258,7 +258,7 @@ func (r CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool)
 
 }
 
-func (r CommitLog) GetMessage(offset int64, size int32) *SelectMappedBufferResult {
+func (r *CommitLog) GetMessage(offset int64, size int32) *SelectMappedBufferResult {
 	mappedFile := r.mappedFileQueue.findMappedFileByOffset(offset, offset == 0)
 	if mappedFile == nil {
 		return nil
@@ -268,7 +268,7 @@ func (r CommitLog) GetMessage(offset int64, size int32) *SelectMappedBufferResul
 	return mappedFile.selectMappedBufferBySize(int32(pos), size)
 }
 
-func (r CommitLog) RollNextFile(offset int64) int64 {
+func (r *CommitLog) RollNextFile(offset int64) int64 {
 	return offset + commitLogFileSize - offset%commitLogFileSize
 }
 

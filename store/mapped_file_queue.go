@@ -87,7 +87,7 @@ func (r *MappedFileQueue) Flush() bool {
 	return result
 }
 
-func (r MappedFileQueue) findMappedFileByOffset(offset int64, returnFirstOnNotFound bool) *MappedFile {
+func (r *MappedFileQueue) findMappedFileByOffset(offset int64, returnFirstOnNotFound bool) *MappedFile {
 	firstMappedFile := r.GetFirstMappedFile()
 	lastMappedFile := r.GetLastMappedFile()
 	if firstMappedFile == nil || lastMappedFile == nil {
@@ -150,7 +150,7 @@ func (r MappedFileQueue) getMappedFileByIndex(index int) *MappedFile {
 
 }
 
-func (r MappedFileQueue) GetLastMappedFile() *MappedFile {
+func (r *MappedFileQueue) GetLastMappedFile() *MappedFile {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 
@@ -163,7 +163,7 @@ func (r MappedFileQueue) GetLastMappedFile() *MappedFile {
 	return lastFile.(*MappedFile)
 }
 
-func (r MappedFileQueue) GetFirstMappedFile() *MappedFile {
+func (r *MappedFileQueue) GetFirstMappedFile() *MappedFile {
 	lock := r.lock
 	lock.RLock()
 	defer lock.RUnlock()
@@ -177,7 +177,7 @@ func (r MappedFileQueue) GetFirstMappedFile() *MappedFile {
 	return lastFile.(*MappedFile)
 }
 
-func (r MappedFileQueue) GetMaxOffset() int64 {
+func (r *MappedFileQueue) GetMaxOffset() int64 {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 
@@ -189,7 +189,7 @@ func (r MappedFileQueue) GetMaxOffset() int64 {
 	return file.fileFromOffset + int64(currentPos)
 }
 
-func (r MappedFileQueue) GetMinOffset() int64 {
+func (r *MappedFileQueue) GetMinOffset() int64 {
 	r.lock.RLock()
 	defer r.lock.RUnlock()
 
@@ -201,7 +201,7 @@ func (r MappedFileQueue) GetMinOffset() int64 {
 	return file.fileFromOffset
 }
 
-func (r MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate bool) *MappedFile {
+func (r *MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreate bool) *MappedFile {
 	var createOffset int64 = -1
 	file := r.GetLastMappedFile()
 	if file == nil {
