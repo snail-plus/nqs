@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -66,6 +67,8 @@ func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 	r.putMessageLock.Lock()
 	defer r.putMessageLock.Unlock()
 
+	now := time.Now()
+
 	messageExt := inner.MessageExt
 	messageExt.StoreTimestamp = util.GetUnixTime()
 
@@ -102,6 +105,11 @@ func (r CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 			PutMessageStatus:    UnknownError,
 			AppendMessageResult: *appendMessageResult,
 		}
+	}
+
+	cost := time.Since(now).Nanoseconds() / 1e6
+	if cost > 500 {
+		log.Infof("append msg cost: %v too long", cost)
 	}
 
 	return &PutMessageResult{

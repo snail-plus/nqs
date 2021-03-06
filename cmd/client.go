@@ -4,7 +4,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
-	"nqs/client/consumer"
 	"nqs/code"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
@@ -52,8 +51,11 @@ func main() {
 				break
 			}
 
+			if index%100 == 0 {
+				log.Infof("发送 条数: %d", index)
+			}
+
 			// log.Infof("发送 response: %+v", response)
-			time.Sleep(1 * time.Millisecond)
 			index++
 		}
 
@@ -75,7 +77,7 @@ func main() {
 		}
 	}()
 
-	pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
+	/*pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
 	if err != nil {
 		panic(err)
 	}
@@ -86,7 +88,7 @@ func main() {
 		}
 	}
 
-	//pushConsumer.Start()
+	pushConsumer.Start()*/
 
 	time.Sleep(math.MaxInt64)
 

@@ -61,7 +61,13 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*net2.Channel, error) {
 }
 
 func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error) {
+	now := time.Now()
 	channel, err := r.getOrCreateChannel(addr)
+	since := time.Since(now)
+	if since.Seconds() > 0.5 {
+		log.Infof("获取连接耗时过长")
+	}
+
 	if err != nil {
 		return nil, err
 	}

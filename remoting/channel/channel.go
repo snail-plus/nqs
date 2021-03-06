@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"github.com/panjf2000/ants/v2"
 	"net"
 	"nqs/remoting/protocol"
 )
@@ -23,16 +24,17 @@ func (r *Channel) RemoteAddr() string {
 }
 
 func (r *Channel) WriteCommand(command *protocol.Command) error {
-	encode, err1 := r.Encoder.Encode(command)
-	if err1 != nil {
-		return err1
-	}
 
-	_, err2 := r.Conn.Write(encode)
-	if err2 != nil {
-		return err2
-	}
-
+	ants.Submit(func() {
+		encode, err1 := r.Encoder.Encode(command)
+		if err1 != nil {
+			return
+		}
+		_, err2 := r.Conn.Write(encode)
+		if err2 != nil {
+			return
+		}
+	})
 	return nil
 }
 

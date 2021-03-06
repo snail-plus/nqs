@@ -17,19 +17,23 @@ type ResponseFuture struct {
 	ResponseCommand protocol.Command
 }
 
-
 func (r *ResponseFuture) WaitResponse(timeoutMillis int64) (*protocol.Command, error) {
 	select {
-	case  <- r.DoneChan:
+	case <-r.DoneChan:
 		log.Debugf("WaitResponse %+v, address: %s, localAddress: %s", r.ResponseCommand,
 			r.Conn.RemoteAddr().String(), r.Conn.LocalAddr().String())
+		cost := time.Now().Unix() - r.BeginTimestamp
+		if cost > 500 {
+			log.Infof("响应过慢, cost: %d", cost)
+		}
+
 		return &r.ResponseCommand, nil
-	case <- time.After(time.Millisecond * time.Duration(timeoutMillis)):
+	case <-time.After(time.Millisecond * time.Duration(timeoutMillis)):
 		return nil, errors.New("超时")
 	}
 }
 
-func (r *ResponseFuture) PutResponse(command protocol.Command)  {
+func (r *ResponseFuture) PutResponse(command protocol.Command) {
 	r.ResponseCommand = command
 	log.Debugf("PutResponse %+v, remote address: %s, localAddress: %s", r.ResponseCommand,
 		r.Conn.RemoteAddr().String(), r.Conn.LocalAddr().String())
@@ -37,5 +41,5 @@ func (r *ResponseFuture) PutResponse(command protocol.Command)  {
 }
 
 func (r *ResponseFuture) IsTimeout() bool {
-	return time.Now().Unix() - r.BeginTimestamp > r.TimeoutMillis
+	return time.Now().Unix()-r.BeginTimestamp > r.TimeoutMillis
 }
