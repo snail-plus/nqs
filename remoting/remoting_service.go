@@ -70,34 +70,30 @@ func ReadMessage(channel net2.Channel) {
 			break
 		}
 
-		log.Debug("headLength: " + strconv.Itoa(headLength))
-
-		// remainData 数据 头部长度 + 头部数据 + BODY
 		remainData, err := net2.ReadFully(headLength, conn)
 		if err != nil {
 			log.Error("error: ", err.Error())
 			break
 		}
 
-		log.Debug("remainData length:" + strconv.Itoa(len(remainData)))
-		command, err := decoder.Decode(remainData)
-		if err != nil {
-			log.Error("decode 失败, ", err.Error())
-			continue
-		}
-
-		// 处理请求
 		ants.Submit(func() {
+			// 处理请求
 			defer func() {
 				err := recover()
 				if err != nil {
 					log.Error("handleConnection error: ", err)
 				}
 			}()
-
+			// remainData 数据 头部长度 + 头部数据 + BODY
+			log.Debug("remainData length:" + strconv.Itoa(len(remainData)))
+			command, err := decoder.Decode(remainData)
+			if err != nil {
+				log.Error("decode 失败, ", err.Error())
+				return
+			}
 			processMessageReceived(command, channel)
-
 		})
+
 	}
 
 }
