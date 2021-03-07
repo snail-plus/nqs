@@ -55,7 +55,7 @@ func main() {
 				break
 			}
 
-			if index%100 == 0 {
+			if index%10000 == 0 {
 				log.Infof("发送 条数: %d", index)
 			}
 

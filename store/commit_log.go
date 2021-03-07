@@ -460,7 +460,7 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	}
 
 	msgCount := atomic.AddInt64(&r.msgCount, 1)
-	if msgCount%100 == 0 {
+	if msgCount%10000 == 0 {
 		log.Infof("msgCount: %d, cqOffset: %d, wroteOffset: %d", msgCount, queueOffset, wroteOffset)
 	}
 

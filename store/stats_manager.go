@@ -53,7 +53,7 @@ func incCost(key string, cost int64) {
 	tmpValue := atomic.AddInt64(&item.value, cost)
 	item.value = tmpValue
 
-	if tmpTimes%1000 == 0 {
+	if tmpTimes%10000 == 0 {
 		log.Infof("key: %s, cost: %d ms", key, tmpValue/tmpTimes/1000000)
 	}
 }
