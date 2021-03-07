@@ -8,7 +8,10 @@ import (
 	"os"
 	"strconv"
 	"sync/atomic"
+	"time"
 )
+
+const OsPageSize = 1024 * 4
 
 type MappedFile struct {
 	mmap            mmap.MMap
@@ -45,6 +48,8 @@ func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 		log.Errorf("mmap error: %s", err.Error())
 		return nil, err
 	}
+
+	mmap.Lock()
 
 	fileShortName := util.GetFileNameByFullPath(fileName)
 	fileFromOffset, err := strconv.ParseInt(fileShortName, 10, 64)
@@ -182,7 +187,13 @@ func (r *MappedFile) GetFileBuffer() *bytes.Buffer {
 }
 
 func (r *MappedFile) Shutdown() {
-	err := r.mmap.Unmap()
+	err := r.mmap.Unlock()
+	if err != nil {
+		log.Infof("文件Unlock错误, %s", r.fileName)
+		return
+	}
+
+	err = r.mmap.Unmap()
 	if err != nil {
 		log.Infof("文件Unmap错误, %s", r.fileName)
 		return
@@ -216,4 +227,19 @@ func (r *MappedFile) destroy() {
 	}
 
 	log.Infof("end destroy file: %s", r.fileName)
+}
+
+func (r *MappedFile) warmMappedFile() {
+	startTime := time.Now()
+	page := 1024 / 4 * 16
+	flush := 0
+	for i := 0; i < int(r.fileSize); i += OsPageSize {
+		r.mmap[i] = 0
+		if (i/OsPageSize)-(flush/OsPageSize) >= page {
+			flush = i
+			r.mmap.Flush()
+		}
+	}
+
+	log.Infof("warmMappedFile: %s, cost: %fs", r.fileName, time.Since(startTime).Seconds())
 }

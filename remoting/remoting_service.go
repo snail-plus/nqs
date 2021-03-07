@@ -8,7 +8,6 @@ import (
 	net2 "nqs/remoting/channel"
 	"nqs/remoting/protocol"
 	"nqs/util"
-	"strconv"
 	"sync"
 )
 
@@ -59,20 +58,20 @@ func ReadMessage(channel net2.Channel) {
 	for !channel.Closed {
 		head, err := net2.ReadFully(net2.HeadLength, conn)
 		if err != nil {
-			log.Error(err.Error())
+			log.Errorf("读取头部错误, %+v", err)
 			break
 		}
 
 		headLength := util.BytesToInt32(head)
 
 		if headLength <= 0 {
-			log.Info("数据异常:" + strconv.Itoa(headLength))
+			log.Infof("数据异常: %d", headLength)
 			break
 		}
 
 		remainData, err := net2.ReadFully(headLength, conn)
 		if err != nil {
-			log.Error("error: ", err.Error())
+			log.Errorf("读取头部错误, %+v", err)
 			break
 		}
 
@@ -85,7 +84,7 @@ func ReadMessage(channel net2.Channel) {
 				}
 			}()
 			// remainData 数据 头部长度 + 头部数据 + BODY
-			log.Debug("remainData length:" + strconv.Itoa(len(remainData)))
+			log.Debugf("remainData length: %d", len(remainData))
 			command, err := decoder.Decode(remainData)
 			if err != nil {
 				log.Error("decode 失败, ", err.Error())

@@ -11,6 +11,7 @@ import (
 	"nqs/remoting/channel"
 	"nqs/remoting/protocol"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,9 +28,14 @@ func main() {
 	msgChan := make(chan *protocol.Command, 100)
 	// write
 	var index = 0
+	builder := strings.Builder{}
+	for i := 0; i < 2040; i++ {
+		builder.WriteString("a")
+	}
+
 	go func() {
 		for {
-			msg := "msgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsgmsg-" + strconv.Itoa(index)
+			msg := builder.String() + "-" + strconv.Itoa(index)
 			command := protocol.CreatesRequestCommand()
 			command.Code = code.SendMessage
 

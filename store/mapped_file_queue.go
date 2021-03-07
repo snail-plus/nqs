@@ -66,6 +66,12 @@ func (r *MappedFileQueue) Load() bool {
 		r.mappedFiles.PushBack(file)
 	}
 
+	lastFile := r.mappedFiles.Back()
+	if lastFile != nil {
+		mappedFile := lastFile.Value.(*MappedFile)
+		mappedFile.warmMappedFile()
+	}
+
 	return true
 }
 
@@ -212,11 +218,13 @@ func (r *MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreat
 
 	if createOffset != -1 && needCreate {
 		nextFilePath := r.storePath + pathSeparatorStr + nutil.Offset2FileName(createOffset)
-		mappedFile, err := InitMappedFile(nextFilePath, int32(r.mappedFileSize))
+		mappedFile, err := InitMappedFile(nextFilePath, r.mappedFileSize)
 		if err != nil {
 			log.Errorf("InitMappedFile error: %s", err.Error())
 			return nil
 		}
+
+		mappedFile.warmMappedFile()
 
 		lock := r.lock
 		lock.Lock()
