@@ -1,7 +1,6 @@
 package remoting
 
 import (
-	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"nqs/processor"
@@ -22,6 +21,13 @@ var ResponseMap = sync.Map{} /*map[int32]*ResponseFuture{}*/
 
 func processMessageReceived(command *protocol.Command, channel net2.Channel) {
 
+	defer func() {
+		err := recover()
+		if err != nil {
+			log.Error("handleConnection error: ", err)
+		}
+	}()
+
 	// 处理响应
 	if command.Flag != 0 {
 		processResponseCommand(command, channel)
@@ -29,13 +35,15 @@ func processMessageReceived(command *protocol.Command, channel net2.Channel) {
 	}
 
 	// 处理请求
-	processor := processor.PMap[command.Code]
-	if processor == nil {
+	pair, ok := processor.PMap[command.Code]
+	if !ok {
 		log.Errorf("Code: %d 没有找到对应的处理器", command.Code)
 		return
 	}
 
-	processor.ProcessRequest(command, &channel)
+	pair.Pool.Submit(func() {
+		pair.Processor.ProcessRequest(command, &channel)
+	})
 
 }
 
@@ -75,23 +83,14 @@ func ReadMessage(channel net2.Channel) {
 			break
 		}
 
-		ants.Submit(func() {
-			// 处理请求
-			defer func() {
-				err := recover()
-				if err != nil {
-					log.Error("handleConnection error: ", err)
-				}
-			}()
-			// remainData 数据 头部长度 + 头部数据 + BODY
-			log.Debugf("remainData length: %d", len(remainData))
-			command, err := decoder.Decode(remainData)
-			if err != nil {
-				log.Error("decode 失败, ", err.Error())
-				return
-			}
-			processMessageReceived(command, channel)
-		})
+		log.Debugf("remainData length: %d", len(remainData))
+		command, err := decoder.Decode(remainData)
+		if err != nil {
+			log.Error("decode 失败, ", err.Error())
+			continue
+		}
+
+		processMessageReceived(command, channel)
 
 	}
 

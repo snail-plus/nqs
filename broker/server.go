@@ -2,6 +2,7 @@ package broker
 
 import (
 	"errors"
+	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"nqs/code"
@@ -23,11 +24,13 @@ type DefaultServer struct {
 }
 
 func (r *DefaultServer) registerProcessor(b *BrokerController) {
-	processor.PMap[code.Heartbeat] = &processor.HeartbeatProcessor{Name: "Heartbeat"}
-	processor.PMap[code.SendMessage] = &processor.SendMessageProcessor{Name: "Send", Store: b.Store}
-	processor.PMap[code.PullMessage] = &processor.PullMessageProcessor{Name: "Pull", Store: b.Store}
+	sendMsgPool, _ := ants.NewPool(1, ants.WithPreAlloc(true), ants.WithMaxBlockingTasks(10000))
+	defaultPool, _ := ants.NewPool(8, ants.WithPreAlloc(true), ants.WithMaxBlockingTasks(10000))
 
-	processor.PMap[code.QueryConsumerOffset] = &processor.ConsumerManageProcessor{Name: "Pull", Store: b.Store}
+	processor.PMap[code.Heartbeat] = processor.Pair{Pool: defaultPool, Processor: &processor.HeartbeatProcessor{Name: "Heartbeat"}}
+	processor.PMap[code.SendMessage] = processor.Pair{Pool: sendMsgPool, Processor: &processor.SendMessageProcessor{Name: "Send", Store: b.Store}}
+	processor.PMap[code.PullMessage] = processor.Pair{Pool: defaultPool, Processor: &processor.PullMessageProcessor{Name: "Pull", Store: b.Store}}
+	processor.PMap[code.QueryConsumerOffset] = processor.Pair{Pool: defaultPool, Processor: &processor.ConsumerManageProcessor{Name: "Pull", Store: b.Store}}
 
 }
 

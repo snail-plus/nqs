@@ -9,7 +9,6 @@ import (
 	"nqs/util"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -23,7 +22,7 @@ const (
 var topicQueueTable = map[string]int64{}
 
 type CommitLog struct {
-	putMessageLock        sync.RWMutex
+	putMessageLock        PutMessageLock
 	store                 MessageStore
 	mappedFileQueue       *MappedFileQueue
 	appendMessageCallback AppendMessageCallback
@@ -32,6 +31,7 @@ type CommitLog struct {
 
 func NewCommitLog(store MessageStore) CommitLog {
 	c := CommitLog{}
+	c.putMessageLock = &PutMessageSpinLock{value: 0}
 	c.store = store
 	c.mappedFileQueue = NewMappedFileQueue(BasePath+"/commitlog", commitLogFileSize)
 	c.appendMessageCallback = &DefaultAppendMessageCallback{
@@ -64,13 +64,13 @@ func (r *CommitLog) Shutdown() {
 }
 
 func (r *CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
-	r.putMessageLock.Lock()
-	defer r.putMessageLock.Unlock()
 
 	now := time.Now()
-
 	messageExt := inner.MessageExt
-	messageExt.StoreTimestamp = util.GetUnixTime()
+	messageExt.StoreTimestamp = now.Unix()
+
+	r.putMessageLock.Lock()
+	defer r.putMessageLock.UnLock()
 
 	mappedFile := r.mappedFileQueue.GetLastMappedFile()
 	if mappedFile == nil || mappedFile.IsFull() {
