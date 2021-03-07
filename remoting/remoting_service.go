@@ -77,13 +77,11 @@ func ReadMessage(channel net2.Channel) {
 
 		ants.Submit(func() {
 			// 处理请求
-
 			defer func() {
 				err := recover()
 				if err != nil {
 					log.Error("handleConnection error: ", err)
 				}
-
 			}()
 			// remainData 数据 头部长度 + 头部数据 + BODY
 			log.Debugf("remainData length: %d", len(remainData))
@@ -92,7 +90,6 @@ func ReadMessage(channel net2.Channel) {
 				log.Error("decode 失败, ", err.Error())
 				return
 			}
-
 			processMessageReceived(command, channel)
 		})
 
