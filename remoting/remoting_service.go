@@ -7,10 +7,8 @@ import (
 	"nqs/processor"
 	net2 "nqs/remoting/channel"
 	"nqs/remoting/protocol"
-	"nqs/store"
 	"nqs/util"
 	"sync"
-	"time"
 )
 
 type Remote interface {
@@ -37,9 +35,7 @@ func processMessageReceived(command *protocol.Command, channel net2.Channel) {
 		return
 	}
 
-	startTime := time.Now()
 	processor.ProcessRequest(command, &channel)
-	store.IncProcessCost(time.Since(startTime).Nanoseconds())
 
 }
 
