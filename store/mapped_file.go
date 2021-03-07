@@ -49,8 +49,6 @@ func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 		return nil, err
 	}
 
-	mmap.Lock()
-
 	fileShortName := util.GetFileNameByFullPath(fileName)
 	fileFromOffset, err := strconv.ParseInt(fileShortName, 10, 64)
 	if err != nil {
@@ -187,13 +185,8 @@ func (r *MappedFile) GetFileBuffer() *bytes.Buffer {
 }
 
 func (r *MappedFile) Shutdown() {
-	err := r.mmap.Unlock()
-	if err != nil {
-		log.Infof("文件Unlock错误, %s", r.fileName)
-		return
-	}
 
-	err = r.mmap.Unmap()
+	err := r.mmap.Unmap()
 	if err != nil {
 		log.Infof("文件Unmap错误, %s", r.fileName)
 		return

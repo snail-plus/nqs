@@ -1,11 +1,14 @@
 package channel
 
 import (
+	"github.com/panjf2000/ants/v2"
 	"net"
 	"nqs/remoting/protocol"
 )
 
 const HeadLength = 4
+
+var writePool, _ = ants.NewPool(4, ants.WithPreAlloc(true))
 
 type Channel struct {
 	Conn    net.Conn
@@ -24,15 +27,17 @@ func (r *Channel) RemoteAddr() string {
 
 func (r *Channel) WriteCommand(command *protocol.Command) error {
 
-	encode, err := r.Encoder.Encode(command)
-	if err != nil {
-		return err
-	}
+	writePool.Submit(func() {
+		encode, err := r.Encoder.Encode(command)
+		if err != nil {
+			return
+		}
 
-	_, err2 := r.Conn.Write(encode)
-	if err2 != nil {
-		return err2
-	}
+		_, err2 := r.Conn.Write(encode)
+		if err2 != nil {
+			return
+		}
+	})
 
 	return nil
 }

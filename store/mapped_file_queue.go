@@ -224,8 +224,6 @@ func (r *MappedFileQueue) GetLastMappedFileByOffset(startOffset int64, needCreat
 			return nil
 		}
 
-		mappedFile.warmMappedFile()
-
 		lock := r.lock
 		lock.Lock()
 		if r.mappedFiles.Len() == 0 {
