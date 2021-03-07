@@ -117,7 +117,6 @@ func (r *DefaultMessageStore) Shutdown() {
 func (r *DefaultMessageStore) PutMessages(messageExt *MessageExtBrokerInner) *PutMessageResult {
 	select {
 	case <-r.stop:
-		log.Info("store has shut down")
 		return &PutMessageResult{
 			PutMessageStatus: ServiceNotAvailable,
 		}

@@ -7,8 +7,10 @@ import (
 	"nqs/processor"
 	net2 "nqs/remoting/channel"
 	"nqs/remoting/protocol"
+	"nqs/store"
 	"nqs/util"
 	"sync"
+	"time"
 )
 
 type Remote interface {
@@ -35,7 +37,9 @@ func processMessageReceived(command *protocol.Command, channel net2.Channel) {
 		return
 	}
 
+	startTime := time.Now()
 	processor.ProcessRequest(command, &channel)
+	store.IncProcessCost(time.Since(startTime).Nanoseconds())
 
 }
 
@@ -77,11 +81,13 @@ func ReadMessage(channel net2.Channel) {
 
 		ants.Submit(func() {
 			// 处理请求
+
 			defer func() {
 				err := recover()
 				if err != nil {
 					log.Error("handleConnection error: ", err)
 				}
+
 			}()
 			// remainData 数据 头部长度 + 头部数据 + BODY
 			log.Debugf("remainData length: %d", len(remainData))
@@ -90,6 +96,7 @@ func ReadMessage(channel net2.Channel) {
 				log.Error("decode 失败, ", err.Error())
 				return
 			}
+
 			processMessageReceived(command, channel)
 		})
 

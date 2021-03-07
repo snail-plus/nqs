@@ -18,6 +18,7 @@ type CallSnapshot struct {
 const (
 	msgCost      = "msgCost"
 	responseCost = "responseCost"
+	processCost  = "processCost"
 )
 
 var corn = cron.New()
@@ -25,6 +26,7 @@ var corn = cron.New()
 func init() {
 	statsMap.Store(msgCost, &CallSnapshot{})
 	statsMap.Store(responseCost, &CallSnapshot{})
+	statsMap.Store(processCost, &CallSnapshot{})
 }
 
 func IncMsgCost(cost int64) {
@@ -35,16 +37,23 @@ func IncResponseCost(cost int64) {
 	incCost(responseCost, cost)
 }
 
+func IncProcessCost(cost int64) {
+	incCost(processCost, cost)
+}
+
 func incCost(key string, cost int64) {
 	load, ok := statsMap.Load(key)
 	if !ok {
 		return
 	}
 	item := load.(*CallSnapshot)
-	item.times = atomic.AddInt64(&item.times, 1)
-	item.value = atomic.AddInt64(&item.value, cost)
+	tmpTimes := atomic.AddInt64(&item.times, 1)
+	item.times = tmpTimes
 
-	if item.times%100 == 0 {
-		log.Infof("key: %s, cost: %d ms", key, item.value/item.times/1000000)
+	tmpValue := atomic.AddInt64(&item.value, cost)
+	item.value = tmpValue
+
+	if tmpTimes%1000 == 0 {
+		log.Infof("key: %s, cost: %d ms", key, tmpValue/tmpTimes/1000000)
 	}
 }

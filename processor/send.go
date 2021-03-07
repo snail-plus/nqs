@@ -32,18 +32,20 @@ func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel
 		return
 	}
 
-	response := request.CreateResponseCommand()
-
 	inner := &store.MessageExtBrokerInner{}
 	inner.QueueId = sendMessageRequestHeader.QueueId
 	inner.Topic = sendMessageRequestHeader.Topic
-	inner.BrokerName = util.GetLocalAddress()
+	inner.BrokerName = "M1"
 	inner.BornTimestamp = sendMessageRequestHeader.BornTimestamp
 	inner.Body = request.Body
 	inner.BornHost = channel.Conn.RemoteAddr().String()
 	inner.StoreHost = channel.Conn.LocalAddr().String()
 
 	putResult := s.Store.PutMessages(inner)
+	/*putResult := &store.PutMessageResult{
+		PutMessageStatus: store.UnknownError,
+	}*/
+	response := request.CreateResponseCommand()
 	s.handlePutMessageResult(putResult, response, channel)
 }
 

@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"nqs/util"
-	"strconv"
 )
 
 type Encoder interface {
@@ -32,7 +31,7 @@ func (r *JsonDecoder) Decode(data []byte) (*Command, error) {
 	bodyLength := length - headerLength - 4
 
 	headerData := data[4 : headerLength+4]
-	log.Debug("headerData: " + string(headerData) + " , headerLength: " + strconv.Itoa(headerLength) + " bodyLength: " + strconv.Itoa(bodyLength))
+	// log.Debug("headerData: " + string(headerData) + " , headerLength: " + strconv.Itoa(headerLength) + " bodyLength: " + strconv.Itoa(bodyLength))
 	err := json.Unmarshal(headerData, c)
 	if err != nil {
 		return nil, err
