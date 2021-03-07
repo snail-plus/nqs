@@ -7,6 +7,7 @@ const (
 	FlushDiskTimeout
 	UnknownError
 	CreateMappedFileFailed
+	ServiceNotAvailable
 )
 
 type AppendMessageResult struct {

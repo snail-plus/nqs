@@ -160,6 +160,33 @@ func TestB(t *testing.T) {
 
 }
 
+func TestABBC(t *testing.T) {
+
+	chanA := make(chan struct{})
+
+	for i := 0; i < 3; i++ {
+		go func() {
+			for {
+				select {
+				case <-chanA:
+					println("退出")
+					return
+				default:
+					time.Sleep(1 * time.Second)
+				}
+			}
+		}()
+
+	}
+
+	time.AfterFunc(5*time.Second, func() {
+		close(chanA)
+	})
+
+	time.Sleep(6 * time.Second)
+
+}
+
 type AB interface {
 	a()
 }
@@ -177,7 +204,7 @@ func (r BN) a() {
 
 func TestABB(t *testing.T) {
 
-	c, err := consumer.NewPushConsumer("test")
+	c, err := consumer.NewPushConsumer("test", "")
 	if err != nil {
 		return
 	}

@@ -49,6 +49,7 @@ func Initialize() *BrokerController {
 }
 
 func (r BrokerController) Shutdown() {
+	r.Server.Shutdown()
 	r.Store.Shutdown()
 }
 

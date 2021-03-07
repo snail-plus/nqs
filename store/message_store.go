@@ -32,7 +32,7 @@ type DefaultMessageStore struct {
 	//topic-queue
 	consumeQueueTable map[string]map[int32]*ConsumeQueue
 	commitLog         CommitLog
-	stop              bool
+	stop              chan struct{}
 
 	rePutMessageService *RePutMessageService
 
@@ -61,6 +61,7 @@ func NewStore() *DefaultMessageStore {
 	defaultStore.commitLog = NewCommitLog(defaultStore)
 	defaultStore.topicQueueTable = map[string]int64{}
 	defaultStore.consumeQueueTable = map[string]map[int32]*ConsumeQueue{}
+	defaultStore.stop = make(chan struct{})
 
 	defaultStore.rePutMessageService = &RePutMessageService{commitLog: defaultStore.commitLog, msgStore: defaultStore}
 
@@ -100,8 +101,9 @@ func (r *DefaultMessageStore) Start() {
 }
 
 func (r *DefaultMessageStore) Shutdown() {
-	r.stop = true
+	close(r.stop)
 
+	time.Sleep(3 * time.Second)
 	r.commitLog.Shutdown()
 
 	for _, maps := range r.consumeQueueTable {
@@ -113,6 +115,15 @@ func (r *DefaultMessageStore) Shutdown() {
 }
 
 func (r *DefaultMessageStore) PutMessages(messageExt *MessageExtBrokerInner) *PutMessageResult {
+	select {
+	case <-r.stop:
+		log.Info("store has shut down")
+		return &PutMessageResult{
+			PutMessageStatus: ServiceNotAvailable,
+		}
+	default:
+	}
+
 	result := r.commitLog.PutMessage(messageExt)
 	return result
 }
@@ -302,8 +313,12 @@ func (r *DefaultMessageStore) recoverConsumeQueue() int64 {
 
 func (r *DefaultMessageStore) persist() {
 	go func() {
-		for !r.stop {
-
+		for {
+			select {
+			default:
+			case <-r.stop:
+				return
+			}
 		}
 	}()
 }

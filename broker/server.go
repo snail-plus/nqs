@@ -19,6 +19,7 @@ type DefaultServer struct {
 	Encoder     protocol.Encoder
 	Decoder     protocol.Decoder
 	ResponseMap map[int32]*remoting.ResponseFuture
+	listener    net.Listener
 }
 
 func (r *DefaultServer) registerProcessor(b *BrokerController) {
@@ -78,6 +79,8 @@ func (r *DefaultServer) Start(b *BrokerController) {
 		panic(err)
 	}
 
+	r.listener = listen
+
 	go func() {
 		for {
 			conn, err := listen.Accept()
@@ -100,4 +103,9 @@ func (r *DefaultServer) handleConnection(conn net.Conn) {
 	channel := r.AddChannel(conn)
 	remoting.ReadMessage(*channel)
 
+}
+
+func (r *DefaultServer) Shutdown() {
+	r.listener.Close()
+	log.Infof("Shutdown tcp server")
 }

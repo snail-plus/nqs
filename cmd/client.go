@@ -10,6 +10,7 @@ import (
 	"nqs/remoting"
 	"nqs/remoting/channel"
 	"nqs/remoting/protocol"
+	"nqs/store"
 	"strconv"
 	"strings"
 	"time"
@@ -64,18 +65,21 @@ func main() {
 
 	}()
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 2; i++ {
 		go func() {
 			for {
 				select {
 				case command := <-msgChan:
+					startTime := time.Now()
+
 					_, err2 := defaultClient.InvokeSync(addr, command, 2000)
+					store.IncResponseCost(time.Since(startTime).Nanoseconds())
 					if err2 != nil {
 						log.Errorf("err2: %s", err2.Error())
 						continue
 					}
 				default:
-					time.Sleep(1 * time.Second)
+					continue
 				}
 			}
 		}()

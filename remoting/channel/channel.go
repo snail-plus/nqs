@@ -4,6 +4,8 @@ import (
 	"github.com/panjf2000/ants/v2"
 	"net"
 	"nqs/remoting/protocol"
+	"nqs/store"
+	"time"
 )
 
 const HeadLength = 4
@@ -28,6 +30,9 @@ func (r *Channel) RemoteAddr() string {
 func (r *Channel) WriteCommand(command *protocol.Command) error {
 
 	writePool.Submit(func() {
+		startTime := time.Now()
+		defer store.IncResponseCost(time.Since(startTime).Nanoseconds())
+
 		encode, err := r.Encoder.Encode(command)
 		if err != nil {
 			return
