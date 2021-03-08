@@ -77,8 +77,8 @@ func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeo
 		Conn:           channel.Conn,
 		BeginTimestamp: time.Now().Unix(),
 		TimeoutMillis:  timeoutMillis,
-		DoneChan:       make(chan bool),
 	}
+
 	ResponseMap.Store(command.Opaque, future)
 
 	err = channel.WriteCommand(command)
@@ -92,7 +92,29 @@ func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeo
 	return response, err
 }
 
-func (r *DefaultClient) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(interface{})) {
+func (r *DefaultClient) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(*protocol.Command, error)) {
+	channel, err := r.getOrCreateChannel(addr)
+	if err != nil {
+		invokeCallback(nil, err)
+		return
+	}
+
+	future := &ResponseFuture{
+		Opaque:         command.Opaque,
+		Conn:           channel.Conn,
+		BeginTimestamp: time.Now().Unix(),
+		TimeoutMillis:  timeoutMillis,
+		DoneChan:       make(chan bool),
+		InvokeCallback: invokeCallback,
+	}
+
+	ResponseMap.Store(command.Opaque, future)
+
+	err = channel.WriteCommand(command)
+	if err != nil {
+		invokeCallback(nil, err)
+	}
+
 }
 
 func (r *DefaultClient) AddChannel(conn net.Conn, addr string) *net2.Channel {

@@ -25,12 +25,12 @@ const addr = "localhost:8089"
 
 func main() {
 
-	msgChan := make(chan *protocol.Command, 100)
+	msgChan := make(chan *protocol.Command, 100000)
 	// write
 	var index = 0
 
 	msgBu := strings.Builder{}
-	for i := 0; i < 1024-200; i++ {
+	for i := 0; i < 1024-400; i++ {
 		msgBu.WriteString("a")
 	}
 
@@ -39,7 +39,7 @@ func main() {
 	go func() {
 		for {
 
-			if index > 1024*1024 {
+			if index > 200000 {
 				break
 			}
 
@@ -67,22 +67,22 @@ func main() {
 
 	}()
 
-	for i := 0; i < 2; i++ {
-		go func() {
-			for {
-				select {
-				case command := <-msgChan:
-					_, err2 := defaultClient.InvokeSync(addr, command, 2000)
-					if err2 != nil {
-						log.Errorf("err2: %s", err2.Error())
-						continue
+	go func() {
+		for {
+			select {
+			case command := <-msgChan:
+				defaultClient.InvokeAsync(addr, command, 2000, func(response *protocol.Command, err error) {
+					if err != nil {
+						log.Error("error: %s", err.Error())
+					} else {
+						log.Infof("响应: %v", response)
 					}
-				default:
-					continue
-				}
+				})
+			default:
+				continue
 			}
-		}()
-	}
+		}
+	}()
 
 	const MaxErrorCount = 20
 

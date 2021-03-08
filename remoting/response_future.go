@@ -15,6 +15,7 @@ type ResponseFuture struct {
 	TimeoutMillis   int64
 	DoneChan        chan bool
 	ResponseCommand protocol.Command
+	InvokeCallback  func(*protocol.Command, error)
 }
 
 func (r *ResponseFuture) WaitResponse(timeoutMillis int64) (*protocol.Command, error) {

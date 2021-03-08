@@ -54,9 +54,16 @@ func processResponseCommand(command *protocol.Command, channel net2.Channel) {
 		log.Errorf("Opaque %d 找不到对应的请求,address: %s", command.Opaque, channel.RemoteAddr())
 		return
 	}
-	future := value.(*ResponseFuture)
-	future.PutResponse(*command)
 	ResponseMap.Delete(command.Opaque)
+
+	future := value.(*ResponseFuture)
+	callback := future.InvokeCallback
+	if callback != nil {
+		callback(command, nil)
+	} else {
+		future.PutResponse(*command)
+	}
+
 }
 
 func ReadMessage(channel net2.Channel) {

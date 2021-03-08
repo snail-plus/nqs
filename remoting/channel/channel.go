@@ -2,6 +2,7 @@ package channel
 
 import (
 	"github.com/panjf2000/ants/v2"
+	log "github.com/sirupsen/logrus"
 	"net"
 	"nqs/remoting/protocol"
 )
@@ -30,10 +31,13 @@ func (r *Channel) WriteCommand(command *protocol.Command) error {
 	writePool.Submit(func() {
 		encode, err := r.Encoder.Encode(command)
 		if err != nil {
+			log.Errorf("Encode error: %s", err.Error())
 			return
 		}
+
 		_, err2 := r.Conn.Write(encode)
 		if err2 != nil {
+			log.Errorf("Opaque: %d, write error: %s", command.Opaque, err2.Error())
 			return
 		}
 	})
