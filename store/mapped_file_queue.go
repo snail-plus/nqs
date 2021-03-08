@@ -66,12 +66,6 @@ func (r *MappedFileQueue) Load() bool {
 		r.mappedFiles.PushBack(file)
 	}
 
-	lastFile := r.mappedFiles.Back()
-	if lastFile != nil {
-		mappedFile := lastFile.Value.(*MappedFile)
-		mappedFile.warmMappedFile()
-	}
-
 	return true
 }
 

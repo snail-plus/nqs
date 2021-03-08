@@ -213,10 +213,11 @@ func (r *MappedFile) destroy() {
 	if err != nil {
 		log.Infof("文件Unmap错误, %s", r.fileName)
 	}
+	r.file.Close()
 
 	err = os.Remove(r.fileName)
 	if err != nil {
-		log.Infof("Remove错误, %s", r.fileName)
+		log.Infof("Remove错误, %s, error: %s", r.fileName, err.Error())
 	}
 
 	log.Infof("end destroy file: %s", r.fileName)

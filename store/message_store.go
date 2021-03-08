@@ -7,6 +7,8 @@ import (
 	"io/ioutil"
 	"math"
 	"nqs/common"
+	"nqs/util"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -23,6 +25,7 @@ type MessageStore interface {
 	PutMessages(*MessageExtBrokerInner) *PutMessageResult
 	GetMessage(group string, topic string, offset int64, queueId, maxMsgNums int32) *GetMessageResult
 	DoDispatch(request *DispatchRequest)
+	TruncateDirtyLogicFiles(phyOffset int64)
 }
 
 type DefaultMessageStore struct {
@@ -229,6 +232,11 @@ func (r *DefaultMessageStore) recoverTopicQueueTable() {
 
 func (r *DefaultMessageStore) loadConsumeQueue() bool {
 	consumequeuePath := BasePath + "/consumequeue"
+	exist, _ := util.PathExists(consumequeuePath)
+	if !exist {
+		os.MkdirAll(consumequeuePath, 0777)
+	}
+
 	fileTopics, err := ioutil.ReadDir(consumequeuePath)
 	if err != nil {
 		log.Errorf("read consumequeue dir error: %s", err.Error())
@@ -332,7 +340,7 @@ type RePutMessageService struct {
 func (r *RePutMessageService) Start() {
 	r.DaemonTask.Name = "rePut"
 	r.DaemonTask.Run = func() {
-		log.Infof("start rePut service,RePutFromOffset: %d", r.RePutFromOffset)
+		log.Infof("start rePut service, 索引队列存储的commitLog最后一个消息的物理offset, RePutFromOffset: %d", r.RePutFromOffset)
 		for !r.IsStopped() {
 			time.Sleep(1 * time.Second)
 			r.doRePut()
@@ -356,8 +364,8 @@ func (r *RePutMessageService) doRePut() {
 			continue
 		}
 
-		if index%100 == 0 {
-			log.Infof("doRePut, result, startOffset %d, byte length: %d, size: %d", result.startOffset, result.ByteBuffer.Len(), result.size)
+		if index%1000 == 0 {
+			log.Infof("doRePut, result, startOffset %d, byte length: %d, msg size: %d", result.startOffset, result.ByteBuffer.Len(), result.size)
 		}
 
 		index++
@@ -407,6 +415,14 @@ func (r *DefaultMessageStore) findConsumeQueue(topic string, queueId int32) *Con
 	cq := NewConsumeQueue(r, topic, queueId, BasePath+"/consumequeue")
 	queueMap[queueId] = cq
 	return cq
+}
+
+func (r *DefaultMessageStore) TruncateDirtyLogicFiles(phyOffset int64) {
+	for _, maps := range r.consumeQueueTable {
+		for _, logic := range maps {
+			logic.truncateDirtyLogicFiles(phyOffset)
+		}
+	}
 }
 
 func (r RePutMessageService) isCommitLogAvailable() bool {

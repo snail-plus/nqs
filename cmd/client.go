@@ -4,6 +4,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
+	"nqs/client/consumer"
 	"nqs/code"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
@@ -11,8 +12,6 @@ import (
 	"nqs/remoting/channel"
 	"nqs/remoting/protocol"
 	"nqs/store"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -29,14 +28,15 @@ func main() {
 	msgChan := make(chan *protocol.Command, 100)
 	// write
 	var index = 0
-	builder := strings.Builder{}
-	for i := 0; i < 2040; i++ {
-		builder.WriteString("a")
-	}
 
 	go func() {
 		for {
-			msg := builder.String() + "-" + strconv.Itoa(index)
+
+			if index > 100 {
+				break
+			}
+
+			msg := "test"
 			command := protocol.CreatesRequestCommand()
 			command.Code = code.SendMessage
 
@@ -50,10 +50,6 @@ func main() {
 			command.Body = []byte(msg)
 
 			msgChan <- command
-
-			if index > 1000000 {
-				break
-			}
 
 			if index%10000 == 0 {
 				log.Infof("发送 条数: %d", index)
@@ -70,6 +66,7 @@ func main() {
 			for {
 				select {
 				case command := <-msgChan:
+					println(command)
 					startTime := time.Now()
 
 					_, err2 := defaultClient.InvokeSync(addr, command, 2000)
@@ -101,7 +98,7 @@ func main() {
 		}
 	}()
 
-	/*pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
+	pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
 	if err != nil {
 		panic(err)
 	}
@@ -112,7 +109,7 @@ func main() {
 		}
 	}
 
-	pushConsumer.Start()*/
+	pushConsumer.Start()
 
 	time.Sleep(math.MaxInt64)
 

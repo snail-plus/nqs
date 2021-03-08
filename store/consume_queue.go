@@ -202,7 +202,7 @@ func (r *ConsumeQueue) recover() {
 	processOffset += mappedFileOffset
 	r.mappedFileQueue.flushedWhere = processOffset
 	mappedFile.wrotePosition = int32(mappedFileOffset)
-	log.Infof("ConsumeQueue flushedWhere: %d,wrotePosition: %d", processOffset, mappedFile.wrotePosition)
+	log.Infof("ConsumeQueue offset: %d, flushedWhere: %d,wrotePosition: %d", processOffset/CqStoreUnitSize, processOffset, mappedFile.wrotePosition)
 
 }
 
@@ -245,6 +245,7 @@ func (r *ConsumeQueue) truncateDirtyLogicFiles(phyOffset int64) {
 
 				// offset >= phyOffset 说明索引文件已经恢复到指定pos
 				if offset >= phyOffset {
+					log.Infof("最终索引文件: %s, offset: %d", mappedFile.fileName, offset)
 					return
 				}
 
@@ -252,7 +253,7 @@ func (r *ConsumeQueue) truncateDirtyLogicFiles(phyOffset int64) {
 				mappedFile.wrotePosition = int32(pos)
 				mappedFile.flushedPosition = int32(pos)
 				r.maxPhysicOffset = offset + int64(size)
-				// 说明到了改文件最后位置
+				// 说明到了改文件最后位置 这里返回说明 索引文件offset 真实索引位置比 commitLog 要小
 				if pos == logicFileSize {
 					return
 				}

@@ -32,8 +32,7 @@ func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel
 		return
 	}
 
-	inner := store.GetExtMessage()
-	defer store.BackExtMessage(inner)
+	inner := &store.MessageExtBrokerInner{}
 
 	inner.QueueId = sendMessageRequestHeader.QueueId
 	inner.Topic = sendMessageRequestHeader.Topic

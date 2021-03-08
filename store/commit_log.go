@@ -240,7 +240,8 @@ func (r *CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool
 
 	readLength := calMsgLength(int(bodyLen), int(topicLen), int(propertiesLength))
 	if int(totalSize) != readLength {
-		log.Errorf("totalSize: %d, readLength: %d, bodyLen: %d, topicLen: %d ,propertiesLength: %d", totalSize, readLength, bodyLen, topicLen, propertiesLength)
+		log.Errorf("topic: %s, 头部记录 totalSize: %d, 实际消息大小 readLength: %d, bodyLen: %d, topicLen: %d ,propertiesLength: %d",
+			string(topic), totalSize, readLength, bodyLen, topicLen, propertiesLength)
 		return &DispatchRequest{
 			msgSize: 0,
 			success: false,
@@ -297,12 +298,6 @@ func (r *CommitLog) recoverNormally(maxPhyOffsetOfConsumeQueue int64) {
 	processOffset := mappedFile.fileFromOffset
 	var mappedFileOffset int64 = 0
 
-	// TODO 修复文件写指针
-
-	/*fixCommitLogWriteOffset := func(commitLogOffset, fileStartOffset int64, msgSize int32) int32 {
-		return int32(commitLogOffset - fileStartOffset) + msgSize
-	}*/
-
 	i := 0
 	for {
 		dispatchRequest := r.CheckMessage(buffer, false, false)
@@ -346,6 +341,7 @@ func (r *CommitLog) recoverNormally(maxPhyOffsetOfConsumeQueue int64) {
 	log.Infof("last commitLog wrotePosition: %d", mappedFile.wrotePosition)
 	if maxPhyOffsetOfConsumeQueue > processOffset {
 		log.Warnf("maxPhyOffsetOfConsumeQueue(%d) >= processOffset(%d), need truncate dirty logic files", maxPhyOffsetOfConsumeQueue, processOffset)
+		r.store.TruncateDirtyLogicFiles(processOffset)
 	}
 
 }
