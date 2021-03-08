@@ -75,6 +75,20 @@ func (r *MappedFileQueue) Load() bool {
 	return true
 }
 
+func (r *MappedFileQueue) DeleteLastMappedFile() {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	last := r.mappedFiles.Back()
+	if last == nil {
+		return
+	}
+
+	mappedFile := last.Value.(*MappedFile)
+	mappedFile.destroy()
+	r.mappedFiles.Remove(last)
+}
+
 func (r *MappedFileQueue) Flush() bool {
 	result := true
 	mappedFile := r.findMappedFileByOffset(r.flushedWhere, r.flushedWhere == 0)

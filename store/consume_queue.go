@@ -206,6 +206,63 @@ func (r *ConsumeQueue) recover() {
 
 }
 
+func (r *ConsumeQueue) truncateDirtyLogicFiles(phyOffset int64) {
+	logicFileSize := mappedFileSizeConsumeQueue
+	for {
+		mappedFile := r.mappedFileQueue.GetLastMappedFile()
+		if mappedFile == nil {
+			return
+		}
+
+		mappedFile.wrotePosition = 0
+		mappedFile.flushedPosition = 0
+		byteBuffer := mappedFile.GetFileBuffer()
+
+		for i := 0; i < logicFileSize; i += CqStoreUnitSize {
+			var offset int64
+			binary.Read(byteBuffer, binary.BigEndian, &offset)
+			var size int32
+			binary.Read(byteBuffer, binary.BigEndian, &size)
+			var tagsCode int64
+			binary.Read(byteBuffer, binary.BigEndian, &tagsCode)
+
+			if i == 0 {
+				// 第一条索引的offset 大于commitLog 最大offset 说明该文件多余删除
+				if offset >= phyOffset {
+					r.mappedFileQueue.DeleteLastMappedFile()
+					break
+				} else {
+					pos := i + CqStoreUnitSize
+					mappedFile.wrotePosition = int32(pos)
+					mappedFile.flushedPosition = int32(pos)
+					r.maxPhysicOffset = offset + int64(size)
+				}
+			} else {
+				// 消息大小为0 说明无效直接返回
+				if offset < 0 || size <= 0 {
+					return
+				}
+
+				// offset >= phyOffset 说明索引文件已经恢复到指定pos
+				if offset >= phyOffset {
+					return
+				}
+
+				pos := i + CqStoreUnitSize
+				mappedFile.wrotePosition = int32(pos)
+				mappedFile.flushedPosition = int32(pos)
+				r.maxPhysicOffset = offset + int64(size)
+				// 说明到了改文件最后位置
+				if pos == logicFileSize {
+					return
+				}
+
+			}
+		}
+
+	}
+}
+
 func (r *ConsumeQueue) Shutdown() {
 	r.mappedFileQueue.Shutdown()
 }
