@@ -4,14 +4,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
-	"nqs/client/consumer"
 	"nqs/code"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
 	"nqs/remoting"
 	"nqs/remoting/channel"
 	"nqs/remoting/protocol"
-	"nqs/store"
+	"strings"
 	"time"
 )
 
@@ -29,14 +28,20 @@ func main() {
 	// write
 	var index = 0
 
+	msgBu := strings.Builder{}
+	for i := 0; i < 1024-100; i++ {
+		msgBu.WriteString("a")
+	}
+
+	msg := msgBu.String()
+
 	go func() {
 		for {
 
-			if index > 100 {
+			if index > 1024*1024 {
 				break
 			}
 
-			msg := "test"
 			command := protocol.CreatesRequestCommand()
 			command.Code = code.SendMessage
 
@@ -66,11 +71,7 @@ func main() {
 			for {
 				select {
 				case command := <-msgChan:
-					println(command)
-					startTime := time.Now()
-
 					_, err2 := defaultClient.InvokeSync(addr, command, 2000)
-					store.IncResponseCost(time.Since(startTime).Nanoseconds())
 					if err2 != nil {
 						log.Errorf("err2: %s", err2.Error())
 						continue
@@ -98,7 +99,7 @@ func main() {
 		}
 	}()
 
-	pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
+	/*pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
 	if err != nil {
 		panic(err)
 	}
@@ -110,7 +111,7 @@ func main() {
 	}
 
 	pushConsumer.Start()
-
+	*/
 	time.Sleep(math.MaxInt64)
 
 }

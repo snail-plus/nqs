@@ -8,7 +8,6 @@ import (
 	"nqs/remoting/protocol"
 	"nqs/store"
 	"nqs/util"
-	"time"
 )
 
 type SendMessageProcessor struct {
@@ -21,8 +20,6 @@ func (s *SendMessageProcessor) Reject() bool {
 }
 
 func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel *channel.Channel) {
-	startTime := time.Now()
-	defer store.IncMsgCost(time.Since(startTime).Nanoseconds())
 
 	sendMessageRequestHeader := message.SendMessageRequestHeader{}
 	err := util.MapToStruct(request.ExtFields, &sendMessageRequestHeader)
