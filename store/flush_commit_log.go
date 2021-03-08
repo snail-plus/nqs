@@ -39,6 +39,13 @@ func (r *FlushRealTimeService) run() {
 		}
 		time.Sleep(1 * time.Second)
 	}
+
+	//shutdown 继续尝试刷新
+	var result = false
+	for i := 0; i < 10 && !result; i++ {
+		result = r.commitLog.mappedFileQueue.Flush()
+	}
+	log.Infof("FlushRealTimeService end, flush result: %t", result)
 }
 
 func (r FlushRealTimeService) shutdown() {

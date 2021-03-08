@@ -1,6 +1,7 @@
 package store
 
 import (
+	log "github.com/sirupsen/logrus"
 	"sync"
 	"sync/atomic"
 )
@@ -35,5 +36,8 @@ func (r *PutMessageSpinLock) Lock() {
 }
 
 func (r *PutMessageSpinLock) UnLock() {
-	atomic.CompareAndSwapInt32(&r.value, 1, 0)
+	swapResult := atomic.CompareAndSwapInt32(&r.value, 1, 0)
+	if !swapResult {
+		log.Warn("[BUG] 解锁失败")
+	}
 }

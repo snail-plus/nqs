@@ -413,6 +413,16 @@ func (r RePutMessageService) isCommitLogAvailable() bool {
 	return r.RePutFromOffset < r.commitLog.GetMaxOffset()
 }
 
-func (r RePutMessageService) Shutdown() {
+func (r *RePutMessageService) Shutdown() {
+	// 尽量RePut索引
+	for i := 0; i < 50 && r.isCommitLogAvailable(); i++ {
+		time.Sleep(100 * time.Millisecond)
+	}
+
+	if r.isCommitLogAvailable() {
+		log.Warnf("commitlog have not finish to be dispatched, rePutOffset: %d, max commitLog offser: %d",
+			r.RePutFromOffset, r.commitLog.GetMaxOffset())
+	}
+
 	r.DaemonTask.Stop()
 }

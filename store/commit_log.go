@@ -60,7 +60,14 @@ func (r *CommitLog) Load() bool {
 func (r *CommitLog) Shutdown() {
 	log.Info("Shutdown commitLog")
 	r.flushCommitLogService.shutdown()
-	r.mappedFileQueue.Shutdown()
+
+	shutdownFileQueueFn := func() {
+		r.mappedFileQueue.Shutdown()
+	}
+
+	time.AfterFunc(5*time.Second, func() {
+		shutdownFileQueueFn()
+	})
 }
 
 func (r *CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
