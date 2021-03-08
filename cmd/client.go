@@ -10,6 +10,7 @@ import (
 	"nqs/remoting"
 	"nqs/remoting/channel"
 	"nqs/remoting/protocol"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -29,7 +30,7 @@ func main() {
 	var index = 0
 
 	msgBu := strings.Builder{}
-	for i := 0; i < 1024-100; i++ {
+	for i := 0; i < 1024-200; i++ {
 		msgBu.WriteString("a")
 	}
 
@@ -52,7 +53,7 @@ func main() {
 			header.QueueId = 1
 
 			command.CustomHeader = header
-			command.Body = []byte(msg)
+			command.Body = []byte(msg + strconv.Itoa(index))
 
 			msgChan <- command
 
