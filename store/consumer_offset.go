@@ -20,12 +20,12 @@ func (r *ConsumerOffsetManager) ConfigFilePath() string {
 }
 
 func (r *ConsumerOffsetManager) Encode() string {
-	marshal, err := json.Marshal(r)
+	marshal, err := json.Marshal(&r)
 	if err != nil {
 		log.Errorf("Encode error: %s", err.Error())
 		return ""
 	}
-	log.Infof("Encode :%s", string(marshal))
+	log.Infof("Encode :%s, %p", string(marshal), r)
 	return string(marshal)
 }
 
@@ -55,7 +55,7 @@ func (r *ConsumerOffsetManager) CommitOffset(clientHost, group, topic string, qu
 		offsetMap[queueId] = offset
 	}
 
-	log.Infof("CommitOffset client: %s, offset: %d, OffsetTable: %v", clientHost, offset, r.OffsetTable)
+	log.Infof("CommitOffset client: %s, offset: %d, OffsetTable: %v, %p", clientHost, offset, r.OffsetTable, r)
 }
 
 func (r *ConsumerOffsetManager) QueryOffset(group, topic string, queueId int32) int64 {
@@ -76,13 +76,12 @@ func (r *ConsumerOffsetManager) QueryOffset(group, topic string, queueId int32) 
 	return offset
 }
 
-func NewConsumerOffsetManager() *ConsumerOffsetManager {
-	consumerOffsetManager := new(ConsumerOffsetManager)
-	consumerOffsetManager.lock = new(sync.RWMutex)
-	consumerOffsetManager.OffsetTable = map[string]map[int32]int64{}
+func NewConsumerOffsetManager() *common.ConfigManager {
+	var configManager = &common.ConfigManager{}
+	configManager.Config = &ConsumerOffsetManager{
+		lock:        new(sync.RWMutex),
+		OffsetTable: make(map[string]map[int32]int64),
+	}
 
-	consumerOffsetManager.ConfigManager.Decode = consumerOffsetManager.Decode
-	consumerOffsetManager.ConfigManager.Encode = consumerOffsetManager.Encode
-	consumerOffsetManager.ConfigManager.ConfigFilePath = consumerOffsetManager.ConfigFilePath
-	return consumerOffsetManager
+	return configManager
 }

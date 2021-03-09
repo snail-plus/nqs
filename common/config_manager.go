@@ -6,14 +6,20 @@ import (
 	"nqs/util"
 )
 
+type IConfig interface {
+	Encode() string
+	Decode(string)
+	ConfigFilePath() string
+	Load() bool
+	Persist()
+}
+
 type ConfigManager struct {
-	Encode         func() string
-	Decode         func(jsonString string)
-	ConfigFilePath func() string
+	Config IConfig
 }
 
 func (r *ConfigManager) Load() bool {
-	fileName := r.ConfigFilePath()
+	fileName := r.Config.ConfigFilePath()
 	exists, err := util.PathExists(fileName)
 	if err != nil {
 		return false
@@ -34,14 +40,14 @@ func (r *ConfigManager) Load() bool {
 		return true
 	}
 
-	r.Decode(jsonString)
+	r.Config.Decode(jsonString)
 
 	return true
 }
 
 func (r *ConfigManager) Persist() {
-	jsonStr := r.Encode()
-	fileName := r.ConfigFilePath()
+	jsonStr := r.Config.Encode()
+	fileName := r.Config.ConfigFilePath()
 	if jsonStr == "" {
 		return
 	}

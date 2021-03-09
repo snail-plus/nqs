@@ -160,12 +160,13 @@ func (r *DefaultClient) SendHeartbeat(addr string) (*protocol.Command, error) {
 	return response, nil
 }
 
-func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, maxMsgCount int32) (*inner.PullResult, error) {
+func (r *DefaultClient) PullMessage(addr, topic, group string, offset int64, queueId, maxMsgCount int32) (*inner.PullResult, error) {
 	header := message.PullMessageRequestHeader{}
 	header.Topic = topic
 	header.QueueId = queueId
 	header.MaxMsgNums = maxMsgCount
 	header.QueueOffset = offset
+	header.ConsumerGroup = group
 
 	command := protocol.CreatesRequestCommand()
 	command.Code = code.PullMessage
@@ -190,6 +191,7 @@ func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, m
 	}
 
 	if response.Code != int32(store.Found) {
+		pullResult.PullStatus = inner.NoNewMsg
 		return pullResult, nil
 	}
 

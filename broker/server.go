@@ -83,7 +83,7 @@ func (r *DefaultServer) AddChannel(addr string, conn net.Conn) *net2.Channel {
 }
 
 func (r *DefaultServer) Start(b *BrokerController) {
-
+	log.Infof("Start TCP Server")
 	r.registerProcessor(b)
 
 	listen, err := net.Listen("tcp4", "127.0.0.1:8089")

@@ -43,7 +43,7 @@ type DefaultMessageStore struct {
 
 	flushConsumeQueue FlushConsumeQueue
 
-	ConsumerOffsetManager *ConsumerOffsetManager
+	ConsumerOffsetManager *common.ConfigManager
 }
 
 func (r *DefaultMessageStore) Load() bool {
@@ -67,7 +67,6 @@ func NewStore() *DefaultMessageStore {
 	defaultStore.topicQueueTable = map[string]int64{}
 	defaultStore.consumeQueueTable = map[string]map[int32]*ConsumeQueue{}
 	defaultStore.stop = make(chan struct{})
-	defaultStore.ConsumerOffsetManager = NewConsumerOffsetManager()
 
 	defaultStore.rePutMessageService = &RePutMessageService{commitLog: defaultStore.commitLog, msgStore: defaultStore}
 

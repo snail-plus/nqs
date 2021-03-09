@@ -2,6 +2,7 @@ package broker
 
 import (
 	"github.com/henrylee2cn/goutil/calendar/cron"
+	"nqs/common"
 	"nqs/remoting"
 	"nqs/remoting/protocol"
 	"nqs/store"
@@ -11,7 +12,7 @@ import (
 type BrokerController struct {
 	Server                *DefaultServer
 	Store                 *store.DefaultMessageStore
-	ConsumerOffsetManager *store.ConsumerOffsetManager
+	ConsumerOffsetManager *common.ConfigManager
 
 	cron *cron.Cron
 }
@@ -31,6 +32,7 @@ func Initialize() *BrokerController {
 	b.cron = cron.New()
 
 	b.Store = store.NewStore()
+	b.Store.ConsumerOffsetManager = b.ConsumerOffsetManager
 	loadOk := b.Store.Load()
 
 	loadOk = loadOk && b.ConsumerOffsetManager.Load()

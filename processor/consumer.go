@@ -24,7 +24,7 @@ func (r *ConsumerManageProcessor) ProcessRequest(command *protocol.Command, chan
 
 	switch command.Code {
 	case code.QueryConsumerOffset:
-		r.updateConsumerOffset(command, channel)
+		r.queryConsumerOffset(command, channel)
 		break
 	case code.UpdateConsumerOffset:
 		r.updateConsumerOffset(command, channel)
@@ -44,7 +44,8 @@ func (r *ConsumerManageProcessor) updateConsumerOffset(command *protocol.Command
 	}
 
 	clientHost := channel.Conn.RemoteAddr().String()
-	r.Store.ConsumerOffsetManager.CommitOffset(clientHost, requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId, requestHeader.CommitOffset)
+	consumerOffsetManager := r.Store.ConsumerOffsetManager.Config.(*store.ConsumerOffsetManager)
+	consumerOffsetManager.CommitOffset(clientHost, requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId, requestHeader.CommitOffset)
 
 	responseHeader := message.UpdateConsumerOffsetResponseHeader{}
 	response := command.CreateResponseCommand()
@@ -63,7 +64,8 @@ func (r *ConsumerManageProcessor) queryConsumerOffset(command *protocol.Command,
 		return
 	}
 
-	offset := r.Store.ConsumerOffsetManager.QueryOffset(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId)
+	consumerOffsetManager := r.Store.ConsumerOffsetManager.Config.(*store.ConsumerOffsetManager)
+	offset := consumerOffsetManager.QueryOffset(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId)
 	log.Infof("group: %s, topic: %s, queueId: %d, offset: %d", requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId, offset)
 	responseHeader := message.QueryConsumerOffsetResponseHeader{Offset: offset}
 	response := command.CreateResponseCommand()

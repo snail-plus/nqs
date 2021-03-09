@@ -167,7 +167,7 @@ func NewPushConsumer(group, topic string) (*PushConsumer, error) {
 	dc.prCh <- PullRequest{
 		ConsumerGroup: group,
 		Mq:            &mq,
-		NextOffset:    0,
+		NextOffset:    -1,
 		LockedFirst:   true,
 		Pq:            &pq,
 	}
@@ -236,14 +236,16 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 		// TODO 从name server 获取
 		addr := "localhost:8089"
 		for {
-			pullResult, err := pc.client.RemoteClient.PullMessage(addr, request.Mq.Topic, request.NextOffset, int32(request.Mq.QueueId), 23)
+			pullResult, err := pc.client.RemoteClient.PullMessage(addr, request.Mq.Topic, request.ConsumerGroup, request.NextOffset, int32(request.Mq.QueueId), 23)
 			if err != nil {
 				log.Errorf("err: %s", err.Error())
 				continue
 			}
+			request.NextOffset = pullResult.NextBeginOffset
 
 			switch pullResult.PullStatus {
 			case inner.Found:
+
 				msgFoundList := pullResult.MsgFoundList
 				if msgFoundList.Len() == 0 {
 					time.Sleep(1 * time.Second)
@@ -257,11 +259,10 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 				}
 				request.Pq.MsgCh <- msgList
 
-				request.NextOffset = pullResult.NextBeginOffset
 				// TODO 更新Offset
 				pc.storage.update(request.Mq, request.NextOffset, false)
 			case inner.NoNewMsg:
-				time.Sleep(100 * time.Millisecond)
+				time.Sleep(10 * time.Second)
 			default:
 				time.Sleep(100 * time.Millisecond)
 				continue

@@ -33,7 +33,17 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 		return
 	}
 
-	getMessage := s.Store.GetMessage(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueOffset, requestHeader.QueueId, requestHeader.MaxMsgNums)
+	offset := requestHeader.QueueOffset
+	manager := s.Store.ConsumerOffsetManager.Config.(*store.ConsumerOffsetManager)
+	if offset < 0 {
+		queryOffset := manager.QueryOffset(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId)
+		if queryOffset > 0 {
+			offset = queryOffset
+		}
+		log.Infof("修复offset: %d", queryOffset)
+	}
+
+	getMessage := s.Store.GetMessage(requestHeader.ConsumerGroup, requestHeader.Topic, offset, requestHeader.QueueId, requestHeader.MaxMsgNums)
 	getMessageStatus := int32(getMessage.Status)
 
 	responseHeader := message.PullMessageResponseHeader{
