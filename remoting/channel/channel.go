@@ -34,6 +34,12 @@ func (r *Channel) WriteCommand(command *protocol.Command) error {
 		return errors.New("连接已经关闭")
 	}
 
+	defer func() {
+		if recover() != nil {
+
+		}
+	}()
+
 	r.WriteChan <- command
 	return nil
 }

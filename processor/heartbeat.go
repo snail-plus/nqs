@@ -28,7 +28,7 @@ func (s *HeartbeatProcessor) ProcessRequest(request *protocol.Command, channel *
 		return
 	}
 
-	log.Infof("receive heartbeat, body: %+v", heartbeatData)
+	log.Debugf("receive heartbeat, body: %+v", heartbeatData)
 
 	responseCommand := request.CreateResponseCommand()
 	channel.WriteCommand(responseCommand)
