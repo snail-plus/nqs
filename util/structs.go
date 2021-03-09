@@ -82,6 +82,10 @@ func StructToMap(obj interface{}) map[string]interface{} {
 		return map[string]interface{}{}
 	}
 
+	if obj1.Kind() != reflect.Struct {
+		return map[string]interface{}{}
+	}
+
 	var data = make(map[string]interface{})
 	for i := 0; i < obj1.NumField(); i++ {
 		data[obj1.Field(i).Name] = obj2.Field(i).Interface()

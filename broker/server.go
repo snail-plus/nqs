@@ -69,7 +69,7 @@ func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeo
 func (r *DefaultServer) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(*protocol.Command, error)) {
 }
 
-func (r *DefaultServer) AddChannel(conn net.Conn) *net2.Channel {
+func (r *DefaultServer) AddChannel(addr string, conn net.Conn) *net2.Channel {
 
 	channel := &net2.Channel{
 		Encoder:   r.Encoder,
@@ -78,7 +78,7 @@ func (r *DefaultServer) AddChannel(conn net.Conn) *net2.Channel {
 		WriteChan: make(chan *protocol.Command, 2000),
 	}
 
-	r.ChannelMap.Store(conn.RemoteAddr().String(), channel)
+	r.ChannelMap.Store(addr, channel)
 	return channel
 }
 
@@ -100,7 +100,7 @@ func (r *DefaultServer) Start(b *BrokerController) {
 				break
 			}
 
-			channel := r.AddChannel(conn)
+			channel := r.AddChannel(conn.RemoteAddr().String(), conn)
 			go r.handleRead(channel)
 			go r.handleWrite(channel)
 		}

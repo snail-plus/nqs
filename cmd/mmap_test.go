@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/list"
 	"encoding/binary"
+	"encoding/json"
 	"github.com/edsrzf/mmap-go"
 	"io/ioutil"
 	"nqs/client/consumer"
@@ -203,6 +204,15 @@ func (r BN) a() {
 }
 
 func TestABB(t *testing.T) {
+
+	x := map[string]map[int32]int64{}
+	x["a"] = map[int32]int64{1: 34}
+
+	marshal, err2 := json.Marshal(x)
+	if err2 != nil {
+		return
+	}
+	println(string(marshal))
 
 	c, err := consumer.NewPushConsumer("test", "")
 	if err != nil {

@@ -55,7 +55,7 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*ch.Channel, error) {
 
 	log.Infof("创建新连接, remoteAddress: %s", addr)
 
-	newChannel := r.AddChannel(conn)
+	newChannel := r.AddChannel(addr, conn)
 	go ReadMessage(newChannel)
 	return newChannel, nil
 }
@@ -128,14 +128,14 @@ func (r *DefaultClient) InvokeAsync(addr string, command *protocol.Command, time
 
 }
 
-func (r *DefaultClient) AddChannel(conn net.Conn) *ch.Channel {
+func (r *DefaultClient) AddChannel(addr string, conn net.Conn) *ch.Channel {
 	channel := ch.Channel{
 		Encoder: r.Encoder,
 		Decoder: r.Decoder,
 		Conn:    conn,
 	}
 
-	r.ChannelMap[conn.RemoteAddr().String()] = &channel
+	r.ChannelMap[addr] = &channel
 	log.Infof("ChannelMap: %+v", r.ChannelMap)
 	return &channel
 }

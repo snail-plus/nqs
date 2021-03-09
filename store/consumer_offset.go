@@ -1,10 +1,9 @@
-package broker
+package store
 
 import (
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"nqs/common"
-	"nqs/store"
 	"sync"
 )
 
@@ -17,7 +16,7 @@ type ConsumerOffsetManager struct {
 }
 
 func (r *ConsumerOffsetManager) ConfigFilePath() string {
-	return store.BasePath + "/config" + "/" + "consumerOffset.json"
+	return BasePath + "/config" + "/" + "consumerOffset.json"
 }
 
 func (r *ConsumerOffsetManager) Encode() string {
@@ -26,7 +25,7 @@ func (r *ConsumerOffsetManager) Encode() string {
 		log.Errorf("Encode error: %s", err.Error())
 		return ""
 	}
-
+	log.Infof("Encode :%s", string(marshal))
 	return string(marshal)
 }
 
@@ -56,7 +55,7 @@ func (r *ConsumerOffsetManager) CommitOffset(clientHost, group, topic string, qu
 		offsetMap[queueId] = offset
 	}
 
-	log.Infof("CommitOffset client: %s, offset: %d", clientHost, offset)
+	log.Infof("CommitOffset client: %s, offset: %d, OffsetTable: %v", clientHost, offset, r.OffsetTable)
 }
 
 func (r *ConsumerOffsetManager) QueryOffset(group, topic string, queueId int32) int64 {

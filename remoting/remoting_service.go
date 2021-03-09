@@ -18,7 +18,7 @@ type Remote interface {
 	InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error)
 	InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(*protocol.Command, error))
 	InvokeOneWay(addr string, command *protocol.Command, timeoutMillis int64) error
-	AddChannel(conn net.Conn) *ch.Channel
+	AddChannel(addr string, conn net.Conn) *ch.Channel
 }
 
 var ResponseMap = sync.Map{} /*map[int32]*ResponseFuture{}*/

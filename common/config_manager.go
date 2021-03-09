@@ -50,4 +50,6 @@ func (r *ConfigManager) Persist() {
 	if err != nil {
 		log.Errorf("persist file: %s error: %s", fileName, err.Error())
 	}
+
+	log.Infof("fileName: %s Persist ok", fileName)
 }

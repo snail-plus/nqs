@@ -11,7 +11,7 @@ import (
 type BrokerController struct {
 	Server                *DefaultServer
 	Store                 *store.DefaultMessageStore
-	ConsumerOffsetManager *ConsumerOffsetManager
+	ConsumerOffsetManager *store.ConsumerOffsetManager
 
 	cron *cron.Cron
 }
@@ -27,7 +27,7 @@ func Initialize() *BrokerController {
 
 	// 设置controller
 	b.Server = defaultServer
-	b.ConsumerOffsetManager = NewConsumerOffsetManager()
+	b.ConsumerOffsetManager = store.NewConsumerOffsetManager()
 	b.cron = cron.New()
 
 	b.Store = store.NewStore()

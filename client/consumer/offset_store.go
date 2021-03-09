@@ -3,7 +3,9 @@ package consumer
 import (
 	log "github.com/sirupsen/logrus"
 	"nqs/client"
+	"nqs/code"
 	"nqs/common/message"
+	"nqs/remoting/protocol"
 	"sync"
 )
 
@@ -16,11 +18,11 @@ type RemoteBrokerOffsetStore struct {
 	mutex       sync.RWMutex
 	OffsetTable map[message.MessageQueue]int64 `json:"OffsetTable"`
 	group       string
-	mqClient    client.RMQClient
+	mqClient    *client.RMQClient
 	namesrv     client.Namesrvs
 }
 
-func NewRemoteOffsetStore(group string, client client.RMQClient, namesrv client.Namesrvs) OffsetStore {
+func NewRemoteOffsetStore(group string, client *client.RMQClient, namesrv client.Namesrvs) OffsetStore {
 	return &RemoteBrokerOffsetStore{
 		OffsetTable: make(map[message.MessageQueue]int64),
 		group:       group,
@@ -77,7 +79,18 @@ func (r *RemoteBrokerOffsetStore) persist(mqs []*message.MessageQueue) {
 
 func (r *RemoteBrokerOffsetStore) updateConsumeOffsetToBroker(group string, mq message.MessageQueue, off int64) error {
 	addr := r.namesrv.FindBrokerAddrByName(mq.BrokerName)
-	err := r.mqClient.RemoteClient.InvokeOneWay(addr, nil, 3000)
+	header := message.UpdateConsumerOffsetRequestHeader{
+		ConsumerGroup: group,
+		Topic:         mq.Topic,
+		QueueId:       int32(mq.QueueId),
+		CommitOffset:  off,
+	}
+
+	command := protocol.CreatesRequestCommand()
+	command.Code = code.UpdateConsumerOffset
+	command.CustomHeader = header
+
+	err := r.mqClient.RemoteClient.InvokeOneWay(addr, command, 3000)
 	if err != nil {
 		return err
 	}

@@ -4,14 +4,12 @@ import (
 	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
-	"nqs/code"
+	"nqs/client/consumer"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
 	"nqs/remoting"
 	"nqs/remoting/channel"
 	"nqs/remoting/protocol"
-	"strconv"
-	"strings"
 	"time"
 )
 
@@ -28,7 +26,7 @@ func main() {
 	//msgChan := make(chan *protocol.Command, 100000)
 	// write
 
-	msgBu := strings.Builder{}
+	/*msgBu := strings.Builder{}
 	for i := 0; i < 5; i++ {
 		msgBu.WriteString("a")
 	}
@@ -65,7 +63,7 @@ func main() {
 
 		})
 
-	}
+	}*/
 
 	/*go func() {
 		index := 0
@@ -116,19 +114,18 @@ func main() {
 		}
 	}()
 
-	/*pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
+	pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
 	if err != nil {
 		panic(err)
 	}
 
 	pushConsumer.ConsumeMsg = func(ext []*message.MessageExt) {
-		for _, item := range ext {
+		/*for _, item := range ext {
 			log.Infof("收到消息: %+v", item)
-		}
+		}*/
 	}
 
 	pushConsumer.Start()
-	*/
 	time.Sleep(math.MaxInt64)
 
 }

@@ -153,20 +153,26 @@ type PushConsumer struct {
 }
 
 func NewPushConsumer(group, topic string) (*PushConsumer, error) {
+	mqClient := client.GetOrNewRocketMQClient("sss")
 	dc := &defaultConsumer{
 		consumerGroup: group,
-		client:        client.GetOrNewRocketMQClient("sss"),
+		client:        mqClient,
 		prCh:          make(chan PullRequest, 4),
-		storage:       &RemoteBrokerOffsetStore{},
+		storage:       NewRemoteOffsetStore(group, mqClient, client.Namesrvs{}),
 	}
+
+	mq := message.MessageQueue{Topic: topic, QueueId: 1}
+	pq := ProcessQueue{MsgCh: make(chan []*message.MessageExt, 10)}
 
 	dc.prCh <- PullRequest{
 		ConsumerGroup: group,
-		Mq:            &message.MessageQueue{Topic: topic, QueueId: 1},
+		Mq:            &mq,
 		NextOffset:    0,
 		LockedFirst:   true,
-		Pq:            &ProcessQueue{MsgCh: make(chan []*message.MessageExt, 10)},
+		Pq:            &pq,
 	}
+
+	dc.processQueueTable.Store(mq, pq)
 
 	pc := &PushConsumer{defaultConsumer: dc}
 	return pc, nil
@@ -244,7 +250,7 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 					continue
 				}
 
-				log.Infof("查到消息条数：%d, NextBeginOffset: %d", msgFoundList.Len(), pullResult.NextBeginOffset)
+				log.Debugf("查到消息条数：%d, NextBeginOffset: %d", msgFoundList.Len(), pullResult.NextBeginOffset)
 				msgList := make([]*message.MessageExt, 0)
 				for item := msgFoundList.Front(); item != nil; item = item.Next() {
 					msgList = append(msgList, item.Value.(*message.MessageExt))

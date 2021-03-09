@@ -80,6 +80,24 @@ func (r PullMessageResponseHeader) checkFields() {
 
 }
 
+type QueryConsumerOffsetRequestHeader struct {
+	ConsumerGroup string
+	Topic         string
+	QueueId       int32
+}
+
+func (r QueryConsumerOffsetRequestHeader) checkFields() {
+
+}
+
+type QueryConsumerOffsetResponseHeader struct {
+	Offset int64
+}
+
+func (r QueryConsumerOffsetResponseHeader) checkFields() {
+
+}
+
 type UpdateConsumerOffsetRequestHeader struct {
 	ConsumerGroup string
 	Topic         string
@@ -88,5 +106,13 @@ type UpdateConsumerOffsetRequestHeader struct {
 }
 
 func (r UpdateConsumerOffsetRequestHeader) checkFields() {
+
+}
+
+type UpdateConsumerOffsetResponseHeader struct {
+	A int64
+}
+
+func (r UpdateConsumerOffsetResponseHeader) checkFields() {
 
 }
