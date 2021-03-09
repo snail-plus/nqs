@@ -85,10 +85,10 @@ type ProcessQueue struct {
 
 type PullRequest struct {
 	ConsumerGroup string
-	Mq            message.MessageQueue
+	Mq            *message.MessageQueue
 	NextOffset    int64
 	LockedFirst   bool
-	Pq            ProcessQueue
+	Pq            *ProcessQueue
 }
 
 func (pr *PullRequest) String() string {
@@ -162,10 +162,10 @@ func NewPushConsumer(group, topic string) (*PushConsumer, error) {
 
 	dc.prCh <- PullRequest{
 		ConsumerGroup: group,
-		Mq:            message.MessageQueue{Topic: topic, QueueId: 1},
+		Mq:            &message.MessageQueue{Topic: topic, QueueId: 1},
 		NextOffset:    0,
 		LockedFirst:   true,
-		Pq:            ProcessQueue{MsgCh: make(chan []*message.MessageExt, 10)},
+		Pq:            &ProcessQueue{MsgCh: make(chan []*message.MessageExt, 10)},
 	}
 
 	pc := &PushConsumer{defaultConsumer: dc}
@@ -252,6 +252,8 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 				request.Pq.MsgCh <- msgList
 
 				request.NextOffset = pullResult.NextBeginOffset
+				// TODO 更新Offset
+				pc.storage.update(request.Mq, request.NextOffset, false)
 			case inner.NoNewMsg:
 				time.Sleep(100 * time.Millisecond)
 			default:

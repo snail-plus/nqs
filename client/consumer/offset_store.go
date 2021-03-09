@@ -30,7 +30,22 @@ func NewRemoteOffsetStore(group string, client client.RMQClient, namesrv client.
 }
 
 func (r *RemoteBrokerOffsetStore) update(mq *message.MessageQueue, offset int64, increaseOnly bool) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
+	localOffset, exist := r.OffsetTable[*mq]
+	if !exist {
+		r.OffsetTable[*mq] = offset
+		return
+	}
+
+	if increaseOnly {
+		if localOffset < offset {
+			r.OffsetTable[*mq] = offset
+		}
+	} else {
+		r.OffsetTable[*mq] = offset
+	}
 }
 
 func (r *RemoteBrokerOffsetStore) persist(mqs []*message.MessageQueue) {

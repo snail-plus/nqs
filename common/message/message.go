@@ -79,3 +79,14 @@ type PullMessageResponseHeader struct {
 func (r PullMessageResponseHeader) checkFields() {
 
 }
+
+type UpdateConsumerOffsetRequestHeader struct {
+	ConsumerGroup string
+	Topic         string
+	QueueId       int32
+	CommitOffset  int64
+}
+
+func (r UpdateConsumerOffsetRequestHeader) checkFields() {
+
+}
