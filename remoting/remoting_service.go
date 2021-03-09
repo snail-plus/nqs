@@ -8,7 +8,7 @@ import (
 	"net"
 	"nqs/code"
 	"nqs/processor"
-	net2 "nqs/remoting/channel"
+	ch "nqs/remoting/channel"
 	"nqs/remoting/protocol"
 	"nqs/util"
 	"sync"
@@ -19,7 +19,7 @@ type Remote interface {
 	InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error)
 	InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(interface{}))
 
-	AddChannel(conn net.Conn) *net2.Channel
+	AddChannel(conn net.Conn) *ch.Channel
 }
 
 var ResponseMap = sync.Map{} /*map[int32]*ResponseFuture{}*/
@@ -30,7 +30,7 @@ func init() {
 		var futureList = make([]*ResponseFuture, 0)
 		ResponseMap.Range(func(key, value interface{}) bool {
 			future := value.(*ResponseFuture)
-			if future.BeginTimestamp+future.TimeoutMillis+1000 < time.Now().Unix() {
+			if future.BeginTimestamp+future.TimeoutMillis/1000+1000 < time.Now().Unix() {
 				ResponseMap.Delete(key)
 				futureList = append(futureList, future)
 				log.Warnf("过期 key: %v", key)
@@ -47,7 +47,7 @@ func init() {
 	})
 }
 
-func processMessageReceived(command *protocol.Command, channel *net2.Channel) {
+func processMessageReceived(command *protocol.Command, channel *ch.Channel) {
 
 	defer func() {
 		err := recover()
@@ -77,7 +77,7 @@ func processMessageReceived(command *protocol.Command, channel *net2.Channel) {
 
 }
 
-func processResponseCommand(command *protocol.Command, channel *net2.Channel) {
+func processResponseCommand(command *protocol.Command, channel *ch.Channel) {
 	value, ok := ResponseMap.Load(command.Opaque)
 
 	if !ok {
@@ -95,12 +95,12 @@ func processResponseCommand(command *protocol.Command, channel *net2.Channel) {
 
 }
 
-func ReadMessage(channel *net2.Channel) {
+func ReadMessage(channel *ch.Channel) {
 	conn := channel.Conn
 	decoder := channel.Decoder
 
 	for !channel.Closed {
-		head, err := net2.ReadFully(net2.HeadLength, conn)
+		head, err := ch.ReadFully(ch.HeadLength, conn)
 		if err != nil {
 			log.Errorf("读取头部错误, %+v", err)
 			break
@@ -113,7 +113,7 @@ func ReadMessage(channel *net2.Channel) {
 			break
 		}
 
-		remainData, err := net2.ReadFully(headLength, conn)
+		remainData, err := ch.ReadFully(headLength, conn)
 		if err != nil {
 			log.Errorf("读取头部错误, %+v", err)
 			break
