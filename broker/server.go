@@ -34,6 +34,10 @@ func (r *DefaultServer) registerProcessor(b *BrokerController) {
 
 }
 
+func (r *DefaultServer) InvokeOneWay(addr string, command *protocol.Command, timeoutMillis int64) error {
+	return nil
+}
+
 func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error) {
 	load, ok := r.ChannelMap.Load(addr)
 	if !ok {
@@ -60,7 +64,7 @@ func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeo
 	return response, err
 }
 
-func (r *DefaultServer) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(interface{})) {
+func (r *DefaultServer) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(*protocol.Command, error)) {
 }
 
 func (r *DefaultServer) AddChannel(conn net.Conn) *net2.Channel {

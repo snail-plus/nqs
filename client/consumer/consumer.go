@@ -125,6 +125,8 @@ type defaultConsumer struct {
 	processQueueTable sync.Map
 
 	client *client.RMQClient
+
+	namesrv client.Namesrvs
 }
 
 func (dc *defaultConsumer) start() error {
@@ -228,7 +230,7 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 		// TODO 从name server 获取
 		addr := "localhost:8089"
 		for {
-			pullResult, err := pc.client.RemoteClient.PullMessage(addr, request.Mq.Topic, request.NextOffset, request.Mq.QueueId, 23)
+			pullResult, err := pc.client.RemoteClient.PullMessage(addr, request.Mq.Topic, request.NextOffset, int32(request.Mq.QueueId), 23)
 			if err != nil {
 				log.Errorf("err: %s", err.Error())
 				continue

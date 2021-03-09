@@ -45,6 +45,10 @@ func (r *Channel) WriteCommand(command *protocol.Command) error {
 }
 
 func (r *Channel) WriteToConn(command *protocol.Command) error {
+	if command.IsResponseType() && command.IsOnewayRPC() {
+		return nil
+	}
+
 	encode, err := r.Encoder.Encode(command)
 	if err != nil {
 		log.Errorf("Encode error: %s", err.Error())

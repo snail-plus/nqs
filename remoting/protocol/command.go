@@ -8,6 +8,9 @@ import (
 
 var index int32 = 0
 
+const RpcOneway = 1
+const RpcType = 0
+
 type Command struct {
 	Body []byte `json:"-"`
 
@@ -36,8 +39,8 @@ type Command struct {
 
 func (r *Command) CreateResponseCommand() *Command {
 	c := &Command{}
+	c.MarkResponseType()
 	c.Code = r.Code
-	c.Flag = 1
 	c.Opaque = r.Opaque
 	c.CustomHeader = r.CustomHeader
 	c.ExtFields = r.ExtFields
@@ -56,4 +59,24 @@ func CreatesRequestCommand() *Command {
 	c.ExtFields = map[string]interface{}{}
 	c.Flag = 0
 	return c
+}
+
+func (r *Command) MarkOnewayRPC() {
+	bits := 1 << RpcOneway
+	r.Flag |= int32(bits)
+}
+
+func (r *Command) IsOnewayRPC() bool {
+	bits := int32(1 << RpcOneway)
+	return (r.Flag & bits) == bits
+}
+
+func (r *Command) MarkResponseType() {
+	bits := int32(1 << RpcType)
+	r.Flag |= bits
+}
+
+func (r *Command) IsResponseType() bool {
+	bits := int32(1 << RpcType)
+	return (r.Flag & bits) == bits
 }

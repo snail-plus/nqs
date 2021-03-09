@@ -36,11 +36,9 @@ func (r *ResponseFuture) WaitResponse(timeoutMillis int64) (*protocol.Command, e
 
 func (r *ResponseFuture) PutResponse(command protocol.Command) {
 	r.ResponseCommand = command
-	log.Debugf("PutResponse %+v, remote address: %s, localAddress: %s", r.ResponseCommand,
-		r.Conn.RemoteAddr().String(), r.Conn.LocalAddr().String())
 	r.DoneChan <- true
 }
 
 func (r *ResponseFuture) IsTimeout() bool {
-	return time.Now().Unix()-r.BeginTimestamp > r.TimeoutMillis
+	return time.Now().Unix()-r.BeginTimestamp > r.TimeoutMillis/1000
 }

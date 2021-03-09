@@ -12,13 +12,12 @@ import (
 	"nqs/remoting/protocol"
 	"nqs/util"
 	"sync"
-	"time"
 )
 
 type Remote interface {
 	InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error)
-	InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(interface{}))
-
+	InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(*protocol.Command, error))
+	InvokeOneWay(addr string, command *protocol.Command, timeoutMillis int64) error
 	AddChannel(conn net.Conn) *ch.Channel
 }
 
@@ -30,10 +29,10 @@ func init() {
 		var futureList = make([]*ResponseFuture, 0)
 		ResponseMap.Range(func(key, value interface{}) bool {
 			future := value.(*ResponseFuture)
-			if future.BeginTimestamp+future.TimeoutMillis/1000+1000 < time.Now().Unix() {
+			if future.IsTimeout() {
 				ResponseMap.Delete(key)
 				futureList = append(futureList, future)
-				log.Warnf("过期 key: %v", key)
+				log.Warnf("请求过期, 过期 key: %v", key)
 			}
 			return true
 		})
@@ -49,15 +48,8 @@ func init() {
 
 func processMessageReceived(command *protocol.Command, channel *ch.Channel) {
 
-	defer func() {
-		err := recover()
-		if err != nil {
-			log.Error("handleConnection error: ", err)
-		}
-	}()
-
 	// 处理响应
-	if command.Flag != 0 {
+	if command.IsResponseType() {
 		processResponseCommand(command, channel)
 		return
 	}
@@ -84,6 +76,7 @@ func processResponseCommand(command *protocol.Command, channel *ch.Channel) {
 		log.Errorf("Opaque %d 找不到对应的请求,address: %s", command.Opaque, channel.RemoteAddr())
 		return
 	}
+
 	ResponseMap.Delete(command.Opaque)
 	future := value.(*ResponseFuture)
 	callback := future.InvokeCallback

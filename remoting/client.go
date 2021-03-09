@@ -10,7 +10,7 @@ import (
 	"nqs/code"
 	"nqs/common/message"
 	"nqs/common/protocol/heartbeat"
-	net2 "nqs/remoting/channel"
+	ch "nqs/remoting/channel"
 	"nqs/remoting/protocol"
 	"nqs/store"
 	"nqs/util"
@@ -22,14 +22,14 @@ import (
 
 type DefaultClient struct {
 	lock       sync.Mutex
-	ChannelMap map[string]*net2.Channel
+	ChannelMap map[string]*ch.Channel
 	Encoder    protocol.Encoder
 	Decoder    protocol.Decoder
 }
 
 func CreateClient() *DefaultClient {
 	return &DefaultClient{
-		ChannelMap: map[string]*net2.Channel{},
+		ChannelMap: map[string]*ch.Channel{},
 		Encoder:    &protocol.JsonEncoder{},
 		Decoder:    &protocol.JsonDecoder{},
 	}
@@ -39,7 +39,7 @@ func (r DefaultClient) Start() {
 
 }
 
-func (r *DefaultClient) getOrCreateChannel(addr string) (*net2.Channel, error) {
+func (r *DefaultClient) getOrCreateChannel(addr string) (*ch.Channel, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -55,9 +55,19 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*net2.Channel, error) {
 
 	log.Infof("创建新连接, remoteAddress: %s", addr)
 
-	newChannel := r.AddChannel(conn, addr)
+	newChannel := r.AddChannel(conn)
 	go ReadMessage(newChannel)
 	return newChannel, nil
+}
+
+func (r DefaultClient) InvokeOneWay(addr string, command *protocol.Command, timeoutMillis int64) error {
+	channel, err := r.getOrCreateChannel(addr)
+	if err != nil {
+		return err
+	}
+	command.MarkOnewayRPC()
+	err = channel.WriteToConn(command)
+	return err
 }
 
 func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error) {
@@ -118,14 +128,14 @@ func (r *DefaultClient) InvokeAsync(addr string, command *protocol.Command, time
 
 }
 
-func (r *DefaultClient) AddChannel(conn net.Conn, addr string) *net2.Channel {
-	channel := net2.Channel{
+func (r *DefaultClient) AddChannel(conn net.Conn) *ch.Channel {
+	channel := ch.Channel{
 		Encoder: r.Encoder,
 		Decoder: r.Decoder,
 		Conn:    conn,
 	}
 
-	r.ChannelMap[addr] = &channel
+	r.ChannelMap[conn.RemoteAddr().String()] = &channel
 	log.Infof("ChannelMap: %+v", r.ChannelMap)
 	return &channel
 }
@@ -193,7 +203,7 @@ func (r *DefaultClient) PullMessage(addr, topic string, offset int64, queueId, m
 	return pullResult, nil
 }
 
-func (r *DefaultClient) closeChannel(addr string, channel *net2.Channel) {
+func (r *DefaultClient) closeChannel(addr string, channel *ch.Channel) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
