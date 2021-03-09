@@ -6,6 +6,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"net"
 	"nqs/remoting/protocol"
+	"time"
 )
 
 const HeadLength = 4
@@ -44,7 +45,7 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 		return err
 	}
 
-	//r.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	r.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	_, err2 := r.Conn.Write(encode)
 	if err2 != nil {
 		log.Errorf("Opaque: %d, write error: %s", command.Opaque, err2.Error())

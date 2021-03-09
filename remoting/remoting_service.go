@@ -6,6 +6,7 @@ import (
 	"github.com/henrylee2cn/goutil/calendar/cron"
 	log "github.com/sirupsen/logrus"
 	"net"
+	"nqs/code"
 	"nqs/processor"
 	net2 "nqs/remoting/channel"
 	"nqs/remoting/protocol"
@@ -64,6 +65,8 @@ func processMessageReceived(command *protocol.Command, channel *net2.Channel) {
 	// 处理请求
 	pair, ok := processor.PMap[command.Code]
 	if !ok {
+		var errorCommand = &protocol.Command{Code: code.SystemError, Opaque: command.Opaque, Flag: 1}
+		channel.WriteCommand(errorCommand)
 		log.Errorf("Code: %d 没有找到对应的处理器", command.Code)
 		return
 	}
