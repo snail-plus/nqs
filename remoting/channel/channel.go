@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"errors"
 	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -12,10 +13,11 @@ const HeadLength = 4
 var writePool, _ = ants.NewPool(4, ants.WithPreAlloc(true))
 
 type Channel struct {
-	Conn    net.Conn
-	Encoder protocol.Encoder
-	Decoder protocol.Decoder
-	Closed  bool
+	Conn      net.Conn
+	Encoder   protocol.Encoder
+	Decoder   protocol.Decoder
+	Closed    bool
+	WriteChan chan *protocol.Command
 }
 
 func (r *Channel) IsOk() bool {
@@ -27,20 +29,27 @@ func (r *Channel) RemoteAddr() string {
 }
 
 func (r *Channel) WriteCommand(command *protocol.Command) error {
+	if r.Closed {
+		return errors.New("连接已经关闭")
+	}
 
-	writePool.Submit(func() {
-		encode, err := r.Encoder.Encode(command)
-		if err != nil {
-			log.Errorf("Encode error: %s", err.Error())
-			return
-		}
+	r.WriteChan <- command
+	return nil
+}
 
-		_, err2 := r.Conn.Write(encode)
-		if err2 != nil {
-			log.Errorf("Opaque: %d, write error: %s", command.Opaque, err2.Error())
-			return
-		}
-	})
+func (r *Channel) WriteToConn(command *protocol.Command) error {
+	encode, err := r.Encoder.Encode(command)
+	if err != nil {
+		log.Errorf("Encode error: %s", err.Error())
+		return err
+	}
+
+	//r.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+	_, err2 := r.Conn.Write(encode)
+	if err2 != nil {
+		log.Errorf("Opaque: %d, write error: %s", command.Opaque, err2.Error())
+		return err2
+	}
 
 	return nil
 }

@@ -25,64 +25,77 @@ const addr = "localhost:8089"
 
 func main() {
 
-	msgChan := make(chan *protocol.Command, 100000)
+	//msgChan := make(chan *protocol.Command, 100000)
 	// write
-	var index = 0
 
 	msgBu := strings.Builder{}
-	for i := 0; i < 1024-400; i++ {
+	for i := 0; i < 5; i++ {
 		msgBu.WriteString("a")
 	}
 
 	msg := msgBu.String()
 
-	go func() {
-		for {
+	var responseCount = 0
+	for index := 0; index < 100000; index++ {
 
-			if index > 200000 {
-				break
+		command := protocol.CreatesRequestCommand()
+		command.Code = code.SendMessage
+
+		header := message.SendMessageRequestHeader{}
+		header.BornTimestamp = time.Now().Unix()
+		header.ProducerGroup = "test"
+		header.Topic = "testTopic"
+		header.QueueId = 1
+
+		command.CustomHeader = header
+		command.Body = []byte(msg + strconv.Itoa(index))
+
+		defaultClient.InvokeAsync(addr, command, 2000, func(response *protocol.Command, err error) {
+
+			if err != nil {
+				log.Errorf("error: %s", err.Error())
+				return
 			}
 
-			command := protocol.CreatesRequestCommand()
-			command.Code = code.SendMessage
-
-			header := message.SendMessageRequestHeader{}
-			header.BornTimestamp = time.Now().Unix()
-			header.ProducerGroup = "test"
-			header.Topic = "testTopic"
-			header.QueueId = 1
-
-			command.CustomHeader = header
-			command.Body = []byte(msg + strconv.Itoa(index))
-
-			msgChan <- command
-
-			if index%10000 == 0 {
-				log.Infof("发送 条数: %d", index)
+			if responseCount%10000 == 0 {
+				log.Infof("响应次数: %d", responseCount)
 			}
 
-			// log.Infof("发送 response: %+v", response)
-			index++
-		}
+			responseCount++
 
-	}()
+		})
 
-	go func() {
+	}
+
+	/*go func() {
+		index := 0
 		for {
 			select {
 			case command := <-msgChan:
-				defaultClient.InvokeAsync(addr, command, 2000, func(response *protocol.Command, err error) {
+				index ++
+				_, err := defaultClient.InvokeSync(addr, command, 2000)
+				if err != nil {
+					log.Errorf("error: %s", err.Error())
+					continue
+				}
+
+				if index % 10000 == 0{
+					log.Infof("响应次数: %d", index)
+				}
+
+				/*defaultClient.InvokeAsync(addr, command, 2000, func(response *protocol.Command, err error) {
+					index ++
 					if err != nil {
-						log.Error("error: %s", err.Error())
-					} else {
-						log.Infof("响应: %v", response)
+						log.Errorf("error: %s", err.Error())
+					} else if index % 10000 == 0{
+						log.Infof("响应: %v, 次数: %d", response, index)
 					}
 				})
 			default:
 				continue
 			}
 		}
-	}()
+	}()*/
 
 	const MaxErrorCount = 20
 
@@ -95,8 +108,11 @@ func main() {
 				break
 			}
 
-			log.Debugf("心跳返回: %+v", heartbeat)
-			time.Sleep(50 * time.Second)
+			if err != nil {
+				log.Infof("error: %s", err.Error())
+			}
+			log.Infof("心跳返回: %+v", heartbeat)
+			time.Sleep(20 * time.Second)
 		}
 	}()
 

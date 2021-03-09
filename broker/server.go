@@ -16,7 +16,7 @@ import (
 
 type DefaultServer struct {
 	lock        sync.Mutex
-	ChannelMap  map[string]*net2.Channel
+	ChannelMap  sync.Map //map[string]*net2.Channel
 	Encoder     protocol.Encoder
 	Decoder     protocol.Decoder
 	ResponseMap map[int32]*remoting.ResponseFuture
@@ -35,11 +35,13 @@ func (r *DefaultServer) registerProcessor(b *BrokerController) {
 }
 
 func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error) {
-	channel := r.ChannelMap[addr]
-	if channel == nil {
+	load, ok := r.ChannelMap.Load(addr)
+	if !ok {
 		log.Errorf("addr: %s", addr)
 		return nil, errors.New("失败")
 	}
+
+	channel := load.(*net2.Channel)
 
 	r.ResponseMap[command.Opaque] = &remoting.ResponseFuture{
 		Opaque:         command.Opaque,
@@ -63,14 +65,15 @@ func (r *DefaultServer) InvokeAsync(addr string, command *protocol.Command, time
 
 func (r *DefaultServer) AddChannel(conn net.Conn) *net2.Channel {
 
-	channel := net2.Channel{
-		Encoder: r.Encoder,
-		Decoder: r.Decoder,
-		Conn:    conn,
+	channel := &net2.Channel{
+		Encoder:   r.Encoder,
+		Decoder:   r.Decoder,
+		Conn:      conn,
+		WriteChan: make(chan *protocol.Command, 2000),
 	}
 
-	r.ChannelMap[conn.RemoteAddr().String()] = &channel
-	return &channel
+	r.ChannelMap.Store(conn.RemoteAddr().String(), channel)
+	return channel
 }
 
 func (r *DefaultServer) Start(b *BrokerController) {
@@ -91,21 +94,40 @@ func (r *DefaultServer) Start(b *BrokerController) {
 				break
 			}
 
-			go r.handleConnection(conn)
+			channel := r.AddChannel(conn)
+			go r.handleRead(channel)
+			go r.handleWrite(channel)
 		}
 	}()
 
 }
 
-func (r *DefaultServer) handleConnection(conn net.Conn) {
+func (r *DefaultServer) handleRead(channel *net2.Channel) {
 
 	defer func() {
-		delete(r.ChannelMap, conn.RemoteAddr().String())
+		channel.Closed = true
+		close(channel.WriteChan)
+		r.ChannelMap.Delete(channel.Conn.RemoteAddr().String())
 	}()
 
-	channel := r.AddChannel(conn)
-	remoting.ReadMessage(*channel)
+	remoting.ReadMessage(channel)
 
+}
+
+func (r *DefaultServer) handleWrite(channel *net2.Channel) {
+	for !channel.Closed {
+		select {
+		case response, isOpen := <-channel.WriteChan:
+			if !isOpen {
+				break
+			}
+
+			err := channel.WriteToConn(response)
+			if err != nil {
+				continue
+			}
+		}
+	}
 }
 
 func (r *DefaultServer) Shutdown() {

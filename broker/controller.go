@@ -3,9 +3,9 @@ package broker
 import (
 	"github.com/henrylee2cn/goutil/calendar/cron"
 	"nqs/remoting"
-	net2 "nqs/remoting/channel"
 	"nqs/remoting/protocol"
 	"nqs/store"
+	"sync"
 )
 
 type BrokerController struct {
@@ -19,7 +19,7 @@ type BrokerController struct {
 func Initialize() *BrokerController {
 	b := &BrokerController{}
 	defaultServer := &DefaultServer{
-		ChannelMap:  map[string]*net2.Channel{},
+		ChannelMap:  sync.Map{},
 		Encoder:     &protocol.JsonEncoder{},
 		Decoder:     &protocol.JsonDecoder{},
 		ResponseMap: map[int32]*remoting.ResponseFuture{},

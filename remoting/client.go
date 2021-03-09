@@ -56,7 +56,7 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*net2.Channel, error) {
 	log.Infof("创建新连接, remoteAddress: %s", addr)
 
 	newChannel := r.AddChannel(conn, addr)
-	go ReadMessage(*newChannel)
+	go ReadMessage(newChannel)
 	return newChannel, nil
 }
 
@@ -77,11 +77,12 @@ func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeo
 		Conn:           channel.Conn,
 		BeginTimestamp: time.Now().Unix(),
 		TimeoutMillis:  timeoutMillis,
+		DoneChan:       make(chan bool),
 	}
 
 	ResponseMap.Store(command.Opaque, future)
 
-	err = channel.WriteCommand(command)
+	err = channel.WriteToConn(command)
 
 	if err != nil {
 		r.closeChannel(addr, channel)
@@ -110,7 +111,7 @@ func (r *DefaultClient) InvokeAsync(addr string, command *protocol.Command, time
 
 	ResponseMap.Store(command.Opaque, future)
 
-	err = channel.WriteCommand(command)
+	err = channel.WriteToConn(command)
 	if err != nil {
 		invokeCallback(nil, err)
 	}

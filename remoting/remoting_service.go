@@ -19,7 +19,7 @@ type Remote interface {
 
 var ResponseMap = sync.Map{} /*map[int32]*ResponseFuture{}*/
 
-func processMessageReceived(command *protocol.Command, channel net2.Channel) {
+func processMessageReceived(command *protocol.Command, channel *net2.Channel) {
 
 	defer func() {
 		err := recover()
@@ -42,12 +42,12 @@ func processMessageReceived(command *protocol.Command, channel net2.Channel) {
 	}
 
 	pair.Pool.Submit(func() {
-		pair.Processor.ProcessRequest(command, &channel)
+		pair.Processor.ProcessRequest(command, channel)
 	})
 
 }
 
-func processResponseCommand(command *protocol.Command, channel net2.Channel) {
+func processResponseCommand(command *protocol.Command, channel *net2.Channel) {
 	value, ok := ResponseMap.Load(command.Opaque)
 
 	if !ok {
@@ -55,7 +55,6 @@ func processResponseCommand(command *protocol.Command, channel net2.Channel) {
 		return
 	}
 	ResponseMap.Delete(command.Opaque)
-
 	future := value.(*ResponseFuture)
 	callback := future.InvokeCallback
 	if callback != nil {
@@ -66,7 +65,7 @@ func processResponseCommand(command *protocol.Command, channel net2.Channel) {
 
 }
 
-func ReadMessage(channel net2.Channel) {
+func ReadMessage(channel *net2.Channel) {
 	conn := channel.Conn
 	decoder := channel.Decoder
 
@@ -101,4 +100,5 @@ func ReadMessage(channel net2.Channel) {
 
 	}
 
+	log.Warnf("读完成,conn: %s", conn.RemoteAddr().String())
 }
