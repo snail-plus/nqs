@@ -1,6 +1,9 @@
 package remoting
 
 import (
+	"errors"
+	"fmt"
+	"github.com/henrylee2cn/goutil/calendar/cron"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"nqs/processor"
@@ -8,6 +11,7 @@ import (
 	"nqs/remoting/protocol"
 	"nqs/util"
 	"sync"
+	"time"
 )
 
 type Remote interface {
@@ -18,6 +22,29 @@ type Remote interface {
 }
 
 var ResponseMap = sync.Map{} /*map[int32]*ResponseFuture{}*/
+
+func init() {
+	c := cron.New()
+	c.AddFunc("*/10 * * * * ?", func() {
+		var futureList = make([]*ResponseFuture, 0)
+		ResponseMap.Range(func(key, value interface{}) bool {
+			future := value.(*ResponseFuture)
+			if future.BeginTimestamp+future.TimeoutMillis+1000 < time.Now().Unix() {
+				ResponseMap.Delete(key)
+				futureList = append(futureList, future)
+				log.Warnf("过期 key: %v", key)
+			}
+			return true
+		})
+
+		for _, item := range futureList {
+			if item.InvokeCallback != nil {
+				item.InvokeCallback(nil, errors.New(fmt.Sprintf("请求超时,op: %d", item.Opaque)))
+			}
+		}
+
+	})
+}
 
 func processMessageReceived(command *protocol.Command, channel *net2.Channel) {
 

@@ -36,7 +36,7 @@ func main() {
 	msg := msgBu.String()
 
 	var responseCount = 0
-	for index := 0; index < 100000; index++ {
+	for index := 0; index < 1000000; index++ {
 
 		command := protocol.CreatesRequestCommand()
 		command.Code = code.SendMessage
