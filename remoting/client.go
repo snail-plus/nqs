@@ -12,16 +12,14 @@ import (
 
 type DefaultClient struct {
 	Remoting
-	lock       sync.Mutex
-	ChannelMap map[string]*ch.Channel
+	lock sync.Mutex
 }
 
 func CreateClient() *DefaultClient {
 	remoting := Remoting{ResponseTable: sync.Map{}, ConnectionTable: sync.Map{}}
 	remoting.Start()
 	return &DefaultClient{
-		Remoting:   remoting,
-		ChannelMap: map[string]*ch.Channel{},
+		Remoting: remoting,
 	}
 }
 
@@ -29,9 +27,9 @@ func (r *DefaultClient) getOrCreateChannel(ctx context.Context, addr string) (*c
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	if v, ok := r.ChannelMap[addr]; ok {
-		log.Debugf("获取到老连接，address: %s", v.Conn.RemoteAddr().String())
-		return v, nil
+	load, ok := r.ConnectionTable.Load(addr)
+	if ok {
+		return load.(*ch.Channel), nil
 	}
 
 	var d net.Dialer
@@ -83,7 +81,7 @@ func (r *DefaultClient) InvokeSync(ctx context.Context, addr string, command *pr
 	err = channel.WriteToConn(command)
 
 	if err != nil {
-		r.closeChannel(channel)
+		r.CloseChannel(channel)
 		return nil, err
 	}
 
@@ -116,29 +114,13 @@ func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *p
 
 }
 
-func (r *DefaultClient) closeChannel(channel *ch.Channel) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
-
-	for addr, item := range r.ChannelMap {
-		if item == channel {
-			delete(r.ChannelMap, addr)
-			channel.Destroy()
-			break
-		}
-	}
-
-	log.Infof("close Channel: %+v", channel)
-}
-
 func (r *DefaultClient) Shutdown() {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
-	for _, item := range r.ChannelMap {
-		item.Destroy()
-	}
-
-	r.ChannelMap = nil
+	r.ConnectionTable.Range(func(key, value interface{}) bool {
+		value.(*ch.Channel).Destroy()
+		return true
+	})
 
 }

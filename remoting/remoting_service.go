@@ -40,6 +40,16 @@ func (r *Remoting) AddChannel(addr string, conn net.Conn) *ch.Channel {
 	return channel
 }
 
+func (r *Remoting) CloseChannel(channel *ch.Channel) {
+	r.ConnectionTable.Range(func(key, value interface{}) bool {
+		if value == channel {
+			r.ConnectionTable.Delete(channel)
+		}
+		return true
+	})
+	channel.Destroy()
+}
+
 func (r *Remoting) ScanConnectionTable() {
 	var futureList = make([]*ResponseFuture, 0)
 	r.ResponseTable.Range(func(key, value interface{}) bool {
