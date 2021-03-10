@@ -2,8 +2,6 @@ package remoting
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"github.com/henrylee2cn/goutil/calendar/cron"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -20,13 +18,33 @@ type Remote interface {
 	InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error))
 	InvokeOneWay(ctx context.Context, addr string, command *protocol.Command) error
 	AddChannel(addr string, conn net.Conn) *ch.Channel
+	Shutdown()
 }
 
-var ResponseMap = sync.Map{} /*map[int32]*ResponseFuture{}*/
+type Remoting struct {
+	Remote
+	ResponseTable   sync.Map
+	ConnectionTable sync.Map
+	cron            cron.Cron
+}
+
+func (r *Remoting) AddChannel(addr string, conn net.Conn) *ch.Channel {
+	channel := &ch.Channel{
+		Conn: conn,
+	}
+
+	r.ConnectionTable.Store(addr, channel)
+
+	return channel
+}
+
+func (r *Remoting) scanConnectionTable() {
+
+}
 
 func init() {
-	c := cron.New()
-	c.AddFunc("*/10 * * * * ?", func() {
+	/*c := cron.New()
+	c.AddFunc("./10 * * * * ?", func() {
 		var futureList = make([]*ResponseFuture, 0)
 		ResponseMap.Range(func(key, value interface{}) bool {
 			future := value.(*ResponseFuture)
@@ -44,14 +62,14 @@ func init() {
 			}
 		}
 
-	})
+	})*/
 }
 
-func processMessageReceived(command *protocol.Command, channel *ch.Channel) {
+func (r *Remoting) processMessageReceived(command *protocol.Command, channel *ch.Channel) {
 
 	// 处理响应
 	if command.IsResponseType() {
-		processResponseCommand(command, channel)
+		r.processResponseCommand(command, channel)
 		return
 	}
 
@@ -70,15 +88,15 @@ func processMessageReceived(command *protocol.Command, channel *ch.Channel) {
 
 }
 
-func processResponseCommand(command *protocol.Command, channel *ch.Channel) {
-	value, ok := ResponseMap.Load(command.Opaque)
+func (r *Remoting) processResponseCommand(command *protocol.Command, channel *ch.Channel) {
+	value, ok := r.ResponseTable.Load(command.Opaque)
 
 	if !ok {
 		log.Errorf("Opaque %d 找不到对应的请求,address: %s", command.Opaque, channel.RemoteAddr())
 		return
 	}
 
-	ResponseMap.Delete(command.Opaque)
+	r.ResponseTable.Delete(command.Opaque)
 	future := value.(*ResponseFuture)
 	callback := future.InvokeCallback
 	if callback != nil {
@@ -89,9 +107,8 @@ func processResponseCommand(command *protocol.Command, channel *ch.Channel) {
 
 }
 
-func ReadMessage(channel *ch.Channel) {
+func (r *Remoting) ReadMessage(channel *ch.Channel) {
 	conn := channel.Conn
-	decoder := channel.Decoder
 
 	for !channel.Closed {
 		head, err := ch.ReadFully(ch.HeadLength, conn)
@@ -114,13 +131,13 @@ func ReadMessage(channel *ch.Channel) {
 		}
 
 		log.Debugf("remainData length: %d", len(remainData))
-		command, err := decoder.Decode(remainData)
+		command, err := protocol.Decode(remainData)
 		if err != nil {
 			log.Error("decode 失败, ", err.Error())
 			continue
 		}
 
-		processMessageReceived(command, channel)
+		r.processMessageReceived(command, channel)
 
 	}
 

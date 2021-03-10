@@ -2,7 +2,6 @@ package channel
 
 import (
 	"errors"
-	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
 	"net"
 	"nqs/remoting/protocol"
@@ -11,18 +10,19 @@ import (
 
 const HeadLength = 4
 
-var writePool, _ = ants.NewPool(4, ants.WithPreAlloc(true))
-
 type Channel struct {
 	Conn      net.Conn
-	Encoder   protocol.Encoder
-	Decoder   protocol.Decoder
 	Closed    bool
 	WriteChan chan *protocol.Command
 }
 
 func (r *Channel) IsOk() bool {
 	return r.Conn != nil && !r.Closed
+}
+
+func (r *Channel) Destroy() {
+	r.Closed = true
+	r.Conn.Close()
 }
 
 func (r *Channel) RemoteAddr() string {
@@ -49,7 +49,7 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 		return nil
 	}
 
-	encode, err := r.Encoder.Encode(command)
+	encode, err := protocol.Encode(command)
 	if err != nil {
 		log.Errorf("Encode error: %s", err.Error())
 		return err

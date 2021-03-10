@@ -16,12 +16,20 @@ import (
 )
 
 type DefaultServer struct {
-	lock        sync.Mutex
-	ChannelMap  sync.Map //map[string]*net2.Channel
-	Encoder     protocol.Encoder
-	Decoder     protocol.Decoder
-	ResponseMap map[int32]*remoting.ResponseFuture
-	listener    net.Listener
+	remoting.Remoting
+	lock     sync.Mutex
+	listener net.Listener
+}
+
+func NewDefaultServer() *DefaultServer {
+	server := &DefaultServer{
+		Remoting: remoting.Remoting{
+			ResponseTable:   sync.Map{},
+			ConnectionTable: sync.Map{},
+		},
+		lock: sync.Mutex{},
+	}
+	return server
 }
 
 func (r *DefaultServer) registerProcessor(b *BrokerController) {
@@ -42,7 +50,7 @@ func (r *DefaultServer) InvokeOneWay(ctx context.Context, addr string, command *
 }
 
 func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error) {
-	load, ok := r.ChannelMap.Load(addr)
+	load, ok := r.Remoting.ConnectionTable.Load(addr)
 	if !ok {
 		log.Errorf("addr: %s", addr)
 		return nil, errors.New("失败")
@@ -50,7 +58,7 @@ func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *pr
 
 	channel := load.(*net2.Channel)
 
-	r.ResponseMap[command.Opaque] = &remoting.ResponseFuture{
+	future := &remoting.ResponseFuture{
 		Opaque:         command.Opaque,
 		Conn:           channel.Conn,
 		BeginTimestamp: time.Now().Unix(),
@@ -58,30 +66,18 @@ func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *pr
 		DoneChan:       make(chan bool),
 	}
 
+	r.Remoting.ResponseTable.Store(command.Opaque, future)
 	err := channel.WriteCommand(command)
 	if err != nil {
 		return nil, err
 	}
 
-	response, err := r.ResponseMap[command.Opaque].WaitResponse()
+	response, err := future.WaitResponse()
 	return response, err
 }
 
 func (r *DefaultServer) InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error)) {
 
-}
-
-func (r *DefaultServer) AddChannel(addr string, conn net.Conn) *net2.Channel {
-
-	channel := &net2.Channel{
-		Encoder:   r.Encoder,
-		Decoder:   r.Decoder,
-		Conn:      conn,
-		WriteChan: make(chan *protocol.Command, 2000),
-	}
-
-	r.ChannelMap.Store(addr, channel)
-	return channel
 }
 
 func (r *DefaultServer) Start(b *BrokerController) {
@@ -115,10 +111,10 @@ func (r *DefaultServer) handleRead(channel *net2.Channel) {
 	defer func() {
 		channel.Closed = true
 		close(channel.WriteChan)
-		r.ChannelMap.Delete(channel.Conn.RemoteAddr().String())
+		r.Remoting.ConnectionTable.Delete(channel.Conn.RemoteAddr().String())
 	}()
 
-	remoting.ReadMessage(channel)
+	r.ReadMessage(channel)
 
 }
 

@@ -237,7 +237,7 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 		// TODO 从name server 获取
 		addr := "localhost:8089"
 		for {
-			pullResult, err := pc.client.RemoteClient.PullMessage(addr, request.Mq.Topic, request.ConsumerGroup, request.NextOffset, int32(request.Mq.QueueId), 23)
+			pullResult, err := pc.client.PullMessage(addr, request.Mq.Topic, request.ConsumerGroup, request.NextOffset, int32(request.Mq.QueueId), 23)
 			if err != nil {
 				log.Errorf("err: %s", err.Error())
 				continue

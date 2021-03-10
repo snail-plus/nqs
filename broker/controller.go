@@ -4,10 +4,7 @@ import (
 	"github.com/henrylee2cn/goutil/calendar/cron"
 	log "github.com/sirupsen/logrus"
 	"nqs/common"
-	"nqs/remoting"
-	"nqs/remoting/protocol"
 	"nqs/store"
-	"sync"
 )
 
 type BrokerController struct {
@@ -20,12 +17,7 @@ type BrokerController struct {
 
 func Initialize() *BrokerController {
 	b := &BrokerController{}
-	defaultServer := &DefaultServer{
-		ChannelMap:  sync.Map{},
-		Encoder:     &protocol.JsonEncoder{},
-		Decoder:     &protocol.JsonDecoder{},
-		ResponseMap: map[int32]*remoting.ResponseFuture{},
-	}
+	defaultServer := NewDefaultServer()
 
 	// 设置controller
 	b.Server = defaultServer

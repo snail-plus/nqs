@@ -1,11 +1,25 @@
 package client
 
 import (
+	"bytes"
+	"container/list"
+	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/henrylee2cn/goutil/calendar/cron"
 	log "github.com/sirupsen/logrus"
+	"nqs/client/inner"
+	"nqs/code"
+	"nqs/common/message"
+	"nqs/common/protocol/heartbeat"
 	"nqs/remoting"
+	"nqs/remoting/protocol"
+	"nqs/store"
+	"nqs/util"
+	"os"
+	"strconv"
 	"sync"
+	"time"
 )
 
 type RMQClient struct {
@@ -72,7 +86,7 @@ func (r *RMQClient) Start() {
 	// send
 	r.cron.AddFunc("*/20 * * * * ?", func() {
 		addr := r.namesrv.FindBrokerAddrByName("")
-		heartbeat, err := r.RemoteClient.SendHeartbeat(addr)
+		heartbeat, err := r.SendHeartbeat(addr)
 		if err != nil {
 			log.Errorf("%v", err)
 			return
@@ -81,6 +95,72 @@ func (r *RMQClient) Start() {
 		log.Infof("心跳返回: %v", heartbeat)
 	})
 
+}
+
+func (r *RMQClient) PullMessage(addr, topic, group string, offset int64, queueId, maxMsgCount int32) (*inner.PullResult, error) {
+	header := message.PullMessageRequestHeader{}
+	header.Topic = topic
+	header.QueueId = queueId
+	header.MaxMsgNums = maxMsgCount
+	header.QueueOffset = offset
+	header.ConsumerGroup = group
+
+	command := protocol.CreatesRequestCommand()
+	command.Code = code.PullMessage
+	command.CustomHeader = header
+
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	response, err := r.RemoteClient.InvokeSync(ctx, addr, command)
+	if err != nil {
+		return nil, err
+	}
+
+	// body := response.Body
+	// decode body 哈哈
+	responseHeader := message.PullMessageResponseHeader{}
+	err = util.MapToStruct(response.ExtFields, &responseHeader)
+	if err != nil {
+		return nil, err
+	}
+
+	pullResult := &inner.PullResult{MsgFoundList: list.New(),
+		NextBeginOffset: responseHeader.NextBeginOffset, MinOffset: responseHeader.MinOffset,
+		MaxOffset: responseHeader.MaxOffset,
+	}
+
+	if response.Code != int32(store.Found) {
+		pullResult.PullStatus = inner.NoNewMsg
+		return pullResult, nil
+	}
+
+	// decode msg body
+	bodyByteBuffer := bytes.NewBuffer(response.Body)
+	for bodyByteBuffer.Len() > 0 {
+		messageExt := message.DecodeMsg(bodyByteBuffer, false)
+		pullResult.MsgFoundList.PushBack(messageExt)
+	}
+
+	return pullResult, nil
+}
+
+func (r *RMQClient) SendHeartbeat(addr string) (*protocol.Command, error) {
+	heartbeatData := heartbeat.Heartbeat{ClientId: util.GetLocalAddress() + "@" + strconv.Itoa(os.Getpid())}
+	body, err := json.Marshal(heartbeatData)
+	if err != nil {
+		return nil, err
+	}
+
+	command := protocol.CreatesRequestCommand()
+	command.Code = code.Heartbeat
+	command.Body = body
+
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	response, err := r.RemoteClient.InvokeSync(ctx, addr, command)
+	if err != nil {
+		return nil, err
+	}
+
+	return response, nil
 }
 
 func (r *RMQClient) Shutdown() {

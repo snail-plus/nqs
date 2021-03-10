@@ -6,24 +6,20 @@ import (
 	"nqs/util"
 )
 
-type Encoder interface {
-	Encode(*Command) ([]byte, error)
+type serializer interface {
+	encodeHeader(*Command) ([]byte, error)
+	decodeHeader([]byte) (*Command, error)
 }
 
-type Decoder interface {
-	Decode([]byte) (*Command, error)
+type JsonCodec struct {
 }
 
-type JsonEncoder struct {
-}
-
-type JsonDecoder struct {
-}
+var jsonSerializer = &JsonCodec{}
 
 /**
 解码 这里 只是解出来通用头部 其他 不管
 */
-func (r *JsonDecoder) Decode(data []byte) (*Command, error) {
+func (r *JsonCodec) decodeHeader(data []byte) (*Command, error) {
 	// 数据格式 长度[4字节] 头部长度[4字节] 头部数据  body
 	c := &Command{}
 	length := len(data)
@@ -46,9 +42,19 @@ func (r *JsonDecoder) Decode(data []byte) (*Command, error) {
 	return c, nil
 }
 
-func (r *JsonEncoder) Encode(c *Command) ([]byte, error) {
+func (r *JsonCodec) encodeHeader(c *Command) ([]byte, error) {
 	makeCustomHeaderToNet(c)
 	headerBytes, err := json.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+
+	return headerBytes, nil
+}
+
+func Encode(c *Command) ([]byte, error) {
+	makeCustomHeaderToNet(c)
+	headerBytes, err := jsonSerializer.encodeHeader(c)
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +90,28 @@ func (r *JsonEncoder) Encode(c *Command) ([]byte, error) {
 	}
 
 	return b, nil
+}
+
+func Decode(data []byte) (*Command, error) {
+	c := &Command{}
+	length := len(data)
+	headerLength := util.BytesToInt32(data[0:4])
+	bodyLength := length - headerLength - 4
+
+	headerData := data[4 : headerLength+4]
+
+	c, err := jsonSerializer.decodeHeader(headerData)
+	if err != nil {
+		return nil, err
+	}
+
+	var bodyData []byte = nil
+	if bodyLength > 0 {
+		bodyData = data[headerLength+4:]
+	}
+
+	c.Body = bodyData
+	return c, err
 }
 
 func makeCustomHeaderToNet(c *Command) {
