@@ -40,7 +40,12 @@ type Command struct {
 func (r *Command) CreateResponseCommand() *Command {
 
 	c := &Command{}
-	c.Flag = 1
+	if r.IsOnewayRPC() {
+		c.MarkOnewayRPC()
+	} else {
+		c.Flag = 1
+	}
+
 	c.Code = r.Code
 	c.Opaque = r.Opaque
 	c.CustomHeader = r.CustomHeader

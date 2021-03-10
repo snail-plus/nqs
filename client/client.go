@@ -167,3 +167,11 @@ func (r *RMQClient) Shutdown() {
 	r.cron.Stop()
 	r.close = true
 }
+
+func (r *RMQClient) RegisterProducer(group string, p InnerProducer) {
+
+}
+
+func (r *RMQClient) InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error) {
+	return r.RemoteClient.InvokeSync(ctx, addr, command)
+}
