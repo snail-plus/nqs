@@ -1,6 +1,7 @@
 package remoting
 
 import (
+	"context"
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -12,13 +13,13 @@ type ResponseFuture struct {
 	Opaque          int32
 	Conn            net.Conn
 	BeginTimestamp  int64
-	TimeoutMillis   int64
+	Ctx             context.Context
 	DoneChan        chan bool
 	ResponseCommand protocol.Command
 	InvokeCallback  func(*protocol.Command, error)
 }
 
-func (r *ResponseFuture) WaitResponse(timeoutMillis int64) (*protocol.Command, error) {
+func (r *ResponseFuture) WaitResponse() (*protocol.Command, error) {
 	select {
 	case <-r.DoneChan:
 		log.Debugf("WaitResponse %+v, address: %s, localAddress: %s", r.ResponseCommand,
@@ -27,18 +28,22 @@ func (r *ResponseFuture) WaitResponse(timeoutMillis int64) (*protocol.Command, e
 		if cost > 1 {
 			log.Infof("响应过慢, cost: %d", cost)
 		}
-
 		return &r.ResponseCommand, nil
-	case <-time.After(time.Millisecond * time.Duration(timeoutMillis)):
+	case <-r.Ctx.Done():
 		return nil, errors.New("超时")
 	}
 }
 
 func (r *ResponseFuture) PutResponse(command protocol.Command) {
 	r.ResponseCommand = command
-	r.DoneChan <- true
+	close(r.DoneChan)
 }
 
 func (r *ResponseFuture) IsTimeout() bool {
-	return time.Now().Unix()-r.BeginTimestamp > r.TimeoutMillis/1000
+	select {
+	case <-r.Ctx.Done():
+		return true
+	default:
+		return false
+	}
 }

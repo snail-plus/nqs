@@ -1,6 +1,7 @@
 package broker
 
 import (
+	"context"
 	"errors"
 	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
@@ -36,11 +37,11 @@ func (r *DefaultServer) registerProcessor(b *BrokerController) {
 
 }
 
-func (r *DefaultServer) InvokeOneWay(addr string, command *protocol.Command, timeoutMillis int64) error {
+func (r *DefaultServer) InvokeOneWay(ctx context.Context, addr string, command *protocol.Command) error {
 	return nil
 }
 
-func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error) {
+func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error) {
 	load, ok := r.ChannelMap.Load(addr)
 	if !ok {
 		log.Errorf("addr: %s", addr)
@@ -53,7 +54,7 @@ func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeo
 		Opaque:         command.Opaque,
 		Conn:           channel.Conn,
 		BeginTimestamp: time.Now().Unix(),
-		TimeoutMillis:  timeoutMillis,
+		Ctx:            ctx,
 		DoneChan:       make(chan bool),
 	}
 
@@ -62,11 +63,12 @@ func (r *DefaultServer) InvokeSync(addr string, command *protocol.Command, timeo
 		return nil, err
 	}
 
-	response, err := r.ResponseMap[command.Opaque].WaitResponse(timeoutMillis)
+	response, err := r.ResponseMap[command.Opaque].WaitResponse()
 	return response, err
 }
 
-func (r *DefaultServer) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(*protocol.Command, error)) {
+func (r *DefaultServer) InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error)) {
+
 }
 
 func (r *DefaultServer) AddChannel(addr string, conn net.Conn) *net2.Channel {

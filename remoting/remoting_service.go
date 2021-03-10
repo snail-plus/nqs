@@ -1,6 +1,7 @@
 package remoting
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/henrylee2cn/goutil/calendar/cron"
@@ -15,9 +16,9 @@ import (
 )
 
 type Remote interface {
-	InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error)
-	InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(*protocol.Command, error))
-	InvokeOneWay(addr string, command *protocol.Command, timeoutMillis int64) error
+	InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error)
+	InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error))
+	InvokeOneWay(ctx context.Context, addr string, command *protocol.Command) error
 	AddChannel(addr string, conn net.Conn) *ch.Channel
 }
 

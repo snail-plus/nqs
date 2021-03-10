@@ -1,12 +1,14 @@
 package consumer
 
 import (
+	"context"
 	log "github.com/sirupsen/logrus"
 	"nqs/client"
 	"nqs/code"
 	"nqs/common/message"
 	"nqs/remoting/protocol"
 	"sync"
+	"time"
 )
 
 type OffsetStore interface {
@@ -90,7 +92,8 @@ func (r *RemoteBrokerOffsetStore) updateConsumeOffsetToBroker(group string, mq m
 	command.Code = code.UpdateConsumerOffset
 	command.CustomHeader = header
 
-	err := r.mqClient.RemoteClient.InvokeOneWay(addr, command, 3000)
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	err := r.mqClient.RemoteClient.InvokeOneWay(ctx, addr, command)
 	if err != nil {
 		return err
 	}

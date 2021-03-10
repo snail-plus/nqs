@@ -3,6 +3,7 @@ package remoting
 import (
 	"bytes"
 	"container/list"
+	"context"
 	"encoding/json"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -39,7 +40,7 @@ func (r DefaultClient) Start() {
 
 }
 
-func (r *DefaultClient) getOrCreateChannel(addr string) (*ch.Channel, error) {
+func (r *DefaultClient) getOrCreateChannel(ctx context.Context, addr string) (*ch.Channel, error) {
 	r.lock.Lock()
 	defer r.lock.Unlock()
 
@@ -48,7 +49,9 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*ch.Channel, error) {
 		return v, nil
 	}
 
-	conn, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	var d net.Dialer
+	conn, err := d.DialContext(ctx, "tcp", addr)
+
 	if err != nil {
 		return nil, err
 	}
@@ -60,8 +63,8 @@ func (r *DefaultClient) getOrCreateChannel(addr string) (*ch.Channel, error) {
 	return newChannel, nil
 }
 
-func (r DefaultClient) InvokeOneWay(addr string, command *protocol.Command, timeoutMillis int64) error {
-	channel, err := r.getOrCreateChannel(addr)
+func (r DefaultClient) InvokeOneWay(ctx context.Context, addr string, command *protocol.Command) error {
+	channel, err := r.getOrCreateChannel(ctx, addr)
 	if err != nil {
 		return err
 	}
@@ -70,9 +73,9 @@ func (r DefaultClient) InvokeOneWay(addr string, command *protocol.Command, time
 	return err
 }
 
-func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeoutMillis int64) (*protocol.Command, error) {
+func (r *DefaultClient) InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error) {
 	now := time.Now()
-	channel, err := r.getOrCreateChannel(addr)
+	channel, err := r.getOrCreateChannel(ctx, addr)
 	since := time.Since(now)
 	if since.Seconds() > 0.5 {
 		log.Infof("获取连接耗时过长")
@@ -86,7 +89,7 @@ func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeo
 		Opaque:         command.Opaque,
 		Conn:           channel.Conn,
 		BeginTimestamp: time.Now().Unix(),
-		TimeoutMillis:  timeoutMillis,
+		Ctx:            ctx,
 		DoneChan:       make(chan bool),
 	}
 
@@ -99,12 +102,12 @@ func (r *DefaultClient) InvokeSync(addr string, command *protocol.Command, timeo
 		return nil, err
 	}
 
-	response, err := future.WaitResponse(timeoutMillis)
+	response, err := future.WaitResponse()
 	return response, err
 }
 
-func (r *DefaultClient) InvokeAsync(addr string, command *protocol.Command, timeoutMillis int64, invokeCallback func(*protocol.Command, error)) {
-	channel, err := r.getOrCreateChannel(addr)
+func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error)) {
+	channel, err := r.getOrCreateChannel(ctx, addr)
 	if err != nil {
 		invokeCallback(nil, err)
 		return
@@ -114,7 +117,7 @@ func (r *DefaultClient) InvokeAsync(addr string, command *protocol.Command, time
 		Opaque:         command.Opaque,
 		Conn:           channel.Conn,
 		BeginTimestamp: time.Now().Unix(),
-		TimeoutMillis:  timeoutMillis,
+		Ctx:            ctx,
 		DoneChan:       make(chan bool),
 		InvokeCallback: invokeCallback,
 	}
@@ -152,7 +155,8 @@ func (r *DefaultClient) SendHeartbeat(addr string) (*protocol.Command, error) {
 	command.Code = code.Heartbeat
 	command.Body = body
 
-	response, err := r.InvokeSync(addr, command, 3000)
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	response, err := r.InvokeSync(ctx, addr, command)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +176,8 @@ func (r *DefaultClient) PullMessage(addr, topic, group string, offset int64, que
 	command.Code = code.PullMessage
 	command.CustomHeader = header
 
-	response, err := r.InvokeSync(addr, command, 3000)
+	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
+	response, err := r.InvokeSync(ctx, addr, command)
 	if err != nil {
 		return nil, err
 	}
