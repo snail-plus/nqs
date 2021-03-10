@@ -25,7 +25,6 @@ func (r *ConsumerOffsetManager) Encode() string {
 		log.Errorf("Encode error: %s", err.Error())
 		return ""
 	}
-	log.Infof("Encode :%s, %p", string(marshal), r)
 	return string(marshal)
 }
 

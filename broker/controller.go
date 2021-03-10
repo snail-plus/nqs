@@ -2,6 +2,7 @@ package broker
 
 import (
 	"github.com/henrylee2cn/goutil/calendar/cron"
+	log "github.com/sirupsen/logrus"
 	"nqs/common"
 	"nqs/remoting"
 	"nqs/remoting/protocol"
@@ -47,6 +48,7 @@ func Initialize() *BrokerController {
 
 	defaultServer.Start(b)
 
+	log.Info("Broker boot success")
 	return b
 }
 

@@ -153,12 +153,13 @@ type PushConsumer struct {
 }
 
 func NewPushConsumer(group, topic string) (*PushConsumer, error) {
-	mqClient := client.GetOrNewRocketMQClient("sss")
+	namesrvs := client.Namesrvs{}
+	mqClient := client.GetOrNewRocketMQClient("sss", namesrvs)
 	dc := &defaultConsumer{
 		consumerGroup: group,
 		client:        mqClient,
 		prCh:          make(chan PullRequest, 4),
-		storage:       NewRemoteOffsetStore(group, mqClient, client.Namesrvs{}),
+		storage:       NewRemoteOffsetStore(group, mqClient, namesrvs),
 	}
 
 	mq := message.MessageQueue{Topic: topic, QueueId: 1}

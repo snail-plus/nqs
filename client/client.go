@@ -3,6 +3,7 @@ package client
 import (
 	"fmt"
 	"github.com/henrylee2cn/goutil/calendar/cron"
+	log "github.com/sirupsen/logrus"
 	"nqs/remoting"
 	"sync"
 )
@@ -19,11 +20,13 @@ type RMQClient struct {
 	done chan struct{}
 
 	cron *cron.Cron
+
+	namesrv Namesrvs
 }
 
 var clientMap sync.Map
 
-func GetOrNewRocketMQClient(clientId string) *RMQClient {
+func GetOrNewRocketMQClient(clientId string, namesrvs Namesrvs) *RMQClient {
 	actual, loaded := clientMap.Load(clientId)
 	if !loaded {
 		return &RMQClient{
@@ -31,6 +34,7 @@ func GetOrNewRocketMQClient(clientId string) *RMQClient {
 			cron:         cron.New(),
 			consumerMap:  &sync.Map{},
 			producerMap:  &sync.Map{},
+			namesrv:      namesrvs,
 		}
 	}
 
@@ -63,6 +67,18 @@ func (r *RMQClient) Start() {
 			consumer.PersistConsumerOffset()
 			return true
 		})
+	})
+
+	// send
+	r.cron.AddFunc("*/20 * * * * ?", func() {
+		addr := r.namesrv.FindBrokerAddrByName("")
+		heartbeat, err := r.RemoteClient.SendHeartbeat(addr)
+		if err != nil {
+			log.Errorf("%v", err)
+			return
+		}
+
+		log.Infof("心跳返回: %v", heartbeat)
 	})
 
 }

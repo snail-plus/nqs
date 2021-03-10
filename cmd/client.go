@@ -1,7 +1,6 @@
 package main
 
 import (
-	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
 	"nqs/client/consumer"
@@ -94,25 +93,6 @@ func main() {
 			}
 		}
 	}()*/
-
-	const MaxErrorCount = 20
-
-	var errCount = 0
-	go func() {
-		for {
-			heartbeat, err := defaultClient.SendHeartbeat(addr)
-			errCount++
-			if err != nil && errCount >= MaxErrorCount {
-				break
-			}
-
-			if err != nil {
-				log.Infof("error: %s", err.Error())
-			}
-			log.Infof("心跳返回: %+v", heartbeat)
-			time.Sleep(20 * time.Second)
-		}
-	}()
 
 	pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
 	if err != nil {
