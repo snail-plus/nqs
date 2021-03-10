@@ -66,7 +66,7 @@ func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *pr
 		DoneChan:       make(chan bool),
 	}
 
-	r.Remoting.ResponseTable.Store(command.Opaque, future)
+	r.ResponseTable.Store(command.Opaque, future)
 	err := channel.WriteCommand(command)
 	if err != nil {
 		return nil, err

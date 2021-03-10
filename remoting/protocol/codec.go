@@ -22,23 +22,13 @@ var jsonSerializer = &JsonCodec{}
 func (r *JsonCodec) decodeHeader(data []byte) (*Command, error) {
 	// 数据格式 长度[4字节] 头部长度[4字节] 头部数据  body
 	c := &Command{}
-	length := len(data)
-	headerLength := util.BytesToInt32(data[0:4])
-	bodyLength := length - headerLength - 4
 
-	headerData := data[4 : headerLength+4]
 	// log.Debug("headerData: " + string(headerData) + " , headerLength: " + strconv.Itoa(headerLength) + " bodyLength: " + strconv.Itoa(bodyLength))
-	err := json.Unmarshal(headerData, c)
+	err := json.Unmarshal(data, c)
 	if err != nil {
 		return nil, err
 	}
 
-	var bodyData []byte = nil
-	if bodyLength > 0 {
-		bodyData = data[headerLength+4:]
-	}
-
-	c.Body = bodyData
 	return c, nil
 }
 

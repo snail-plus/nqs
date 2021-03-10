@@ -17,8 +17,10 @@ type DefaultClient struct {
 }
 
 func CreateClient() *DefaultClient {
+	remoting := Remoting{ResponseTable: sync.Map{}, ConnectionTable: sync.Map{}}
+	remoting.Start()
 	return &DefaultClient{
-		Remoting:   Remoting{ResponseTable: sync.Map{}, ConnectionTable: sync.Map{}},
+		Remoting:   remoting,
 		ChannelMap: map[string]*ch.Channel{},
 	}
 }
@@ -41,7 +43,8 @@ func (r *DefaultClient) getOrCreateChannel(ctx context.Context, addr string) (*c
 
 	log.Infof("创建新连接, remoteAddress: %s", addr)
 
-	newChannel := r.Remoting.AddChannel(addr, conn)
+	newChannel := r.AddChannel(addr, conn)
+	go r.ReadMessage(newChannel)
 	return newChannel, nil
 }
 
@@ -104,7 +107,7 @@ func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *p
 		InvokeCallback: invokeCallback,
 	}
 
-	r.Remoting.ResponseTable.Store(command.Opaque, future)
+	r.ResponseTable.Store(command.Opaque, future)
 
 	err = channel.WriteToConn(command)
 	if err != nil {

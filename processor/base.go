@@ -13,9 +13,6 @@ type Pair struct {
 	Processor Processor
 }
 
-var Encoder = &protocol.JsonEncoder{}
-var Decoder = &protocol.JsonDecoder{}
-
 type Processor interface {
 	Reject() bool
 	ProcessRequest(*protocol.Command, *channel.Channel)

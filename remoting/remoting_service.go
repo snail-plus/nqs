@@ -2,6 +2,8 @@ package remoting
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/henrylee2cn/goutil/calendar/cron"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -23,46 +25,47 @@ type Remote interface {
 
 type Remoting struct {
 	Remote
+	once            sync.Once
 	ResponseTable   sync.Map
 	ConnectionTable sync.Map
-	cron            cron.Cron
+	cron            *cron.Cron
 }
 
 func (r *Remoting) AddChannel(addr string, conn net.Conn) *ch.Channel {
 	channel := &ch.Channel{
-		Conn: conn,
+		Conn:      conn,
+		WriteChan: make(chan *protocol.Command, 1000),
 	}
-
 	r.ConnectionTable.Store(addr, channel)
-
 	return channel
 }
 
-func (r *Remoting) scanConnectionTable() {
+func (r *Remoting) ScanConnectionTable() {
+	var futureList = make([]*ResponseFuture, 0)
+	r.ResponseTable.Range(func(key, value interface{}) bool {
+		future := value.(*ResponseFuture)
+		if future.IsTimeout() {
+			r.ResponseTable.Delete(key)
+			futureList = append(futureList, future)
+			log.Warnf("请求过期, 过期 key: %v", key)
+		}
+		return true
+	})
 
+	for _, item := range futureList {
+		if item.InvokeCallback != nil {
+			item.InvokeCallback(nil, errors.New(fmt.Sprintf("请求超时,op: %d", item.Opaque)))
+		}
+	}
 }
 
-func init() {
-	/*c := cron.New()
-	c.AddFunc("./10 * * * * ?", func() {
-		var futureList = make([]*ResponseFuture, 0)
-		ResponseMap.Range(func(key, value interface{}) bool {
-			future := value.(*ResponseFuture)
-			if future.IsTimeout() {
-				ResponseMap.Delete(key)
-				futureList = append(futureList, future)
-				log.Warnf("请求过期, 过期 key: %v", key)
-			}
-			return true
+func (r *Remoting) Start() {
+	r.once.Do(func() {
+		r.cron = cron.New()
+		r.cron.AddFunc("./10 * * * * ?", func() {
+			r.ScanConnectionTable()
 		})
-
-		for _, item := range futureList {
-			if item.InvokeCallback != nil {
-				item.InvokeCallback(nil, errors.New(fmt.Sprintf("请求超时,op: %d", item.Opaque)))
-			}
-		}
-
-	})*/
+	})
 }
 
 func (r *Remoting) processMessageReceived(command *protocol.Command, channel *ch.Channel) {

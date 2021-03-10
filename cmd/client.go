@@ -6,17 +6,8 @@ import (
 	"nqs/client/consumer"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
-	"nqs/remoting"
-	"nqs/remoting/channel"
-	"nqs/remoting/protocol"
 	"time"
 )
-
-var defaultClient = remoting.DefaultClient{
-	ChannelMap: map[string]*channel.Channel{},
-	Encoder:    &protocol.JsonEncoder{},
-	Decoder:    &protocol.JsonDecoder{},
-}
 
 const addr = "localhost:8089"
 
