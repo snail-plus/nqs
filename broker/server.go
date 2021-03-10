@@ -9,7 +9,7 @@ import (
 	"nqs/code"
 	"nqs/processor"
 	"nqs/remoting"
-	net2 "nqs/remoting/channel"
+	ch "nqs/remoting/channel"
 	"nqs/remoting/protocol"
 	"sync"
 	"time"
@@ -46,7 +46,15 @@ func (r *DefaultServer) registerProcessor(b *BrokerController) {
 }
 
 func (r *DefaultServer) InvokeOneWay(ctx context.Context, addr string, command *protocol.Command) error {
-	return nil
+	load, ok := r.Remoting.ConnectionTable.Load(addr)
+	if !ok {
+		log.Errorf("addr: %s", addr)
+		return errors.New("失败")
+	}
+
+	channel := load.(*ch.Channel)
+
+	return channel.WriteCommand(command)
 }
 
 func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error) {
@@ -56,7 +64,7 @@ func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *pr
 		return nil, errors.New("失败")
 	}
 
-	channel := load.(*net2.Channel)
+	channel := load.(*ch.Channel)
 
 	future := &remoting.ResponseFuture{
 		Opaque:         command.Opaque,
@@ -106,7 +114,7 @@ func (r *DefaultServer) Start(b *BrokerController) {
 
 }
 
-func (r *DefaultServer) handleRead(channel *net2.Channel) {
+func (r *DefaultServer) handleRead(channel *ch.Channel) {
 
 	defer func() {
 		channel.Closed = true
@@ -118,7 +126,7 @@ func (r *DefaultServer) handleRead(channel *net2.Channel) {
 
 }
 
-func (r *DefaultServer) handleWrite(channel *net2.Channel) {
+func (r *DefaultServer) handleWrite(channel *ch.Channel) {
 	for !channel.Closed {
 		select {
 		case response, isOpen := <-channel.WriteChan:
