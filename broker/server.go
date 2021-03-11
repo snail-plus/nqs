@@ -115,15 +115,7 @@ func (r *DefaultServer) Start(b *BrokerController) {
 }
 
 func (r *DefaultServer) handleRead(channel *ch.Channel) {
-
-	defer func() {
-		channel.Closed = true
-		close(channel.WriteChan)
-		r.Remoting.ConnectionTable.Delete(channel.Conn.RemoteAddr().String())
-	}()
-
 	r.ReadMessage(channel)
-
 }
 
 func (r *DefaultServer) handleWrite(channel *ch.Channel) {
@@ -144,5 +136,11 @@ func (r *DefaultServer) handleWrite(channel *ch.Channel) {
 
 func (r *DefaultServer) Shutdown() {
 	r.listener.Close()
+
+	r.ResponseTable.Range(func(key, value interface{}) bool {
+		r.ResponseTable.Delete(key)
+		return true
+	})
+
 	log.Infof("Shutdown tcp server")
 }

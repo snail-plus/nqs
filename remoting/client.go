@@ -28,7 +28,7 @@ func (r *DefaultClient) getOrCreateChannel(ctx context.Context, addr string) (*c
 	defer r.lock.Unlock()
 
 	load, ok := r.ConnectionTable.Load(addr)
-	if ok {
+	if ok && !load.(*ch.Channel).Closed {
 		return load.(*ch.Channel), nil
 	}
 
@@ -81,7 +81,7 @@ func (r *DefaultClient) InvokeSync(ctx context.Context, addr string, command *pr
 	err = channel.WriteToConn(command)
 
 	if err != nil {
-		r.CloseChannel(channel)
+		r.RemoveChannel(channel)
 		return nil, err
 	}
 
@@ -120,6 +120,11 @@ func (r *DefaultClient) Shutdown() {
 
 	r.ConnectionTable.Range(func(key, value interface{}) bool {
 		value.(*ch.Channel).Destroy()
+		return true
+	})
+
+	r.ResponseTable.Range(func(key, value interface{}) bool {
+		r.ResponseTable.Delete(key)
 		return true
 	})
 

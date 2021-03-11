@@ -49,6 +49,7 @@ func (r *ConsumerManageProcessor) updateConsumerOffset(command *protocol.Command
 
 	responseHeader := message.UpdateConsumerOffsetResponseHeader{}
 	response := command.CreateResponseCommand()
+	response.Code = code.Success
 	response.CustomHeader = responseHeader
 
 	channel.WriteCommand(response)

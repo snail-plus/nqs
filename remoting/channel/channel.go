@@ -22,6 +22,7 @@ func (r *Channel) IsOk() bool {
 
 func (r *Channel) Destroy() {
 	r.Closed = true
+	close(r.WriteChan)
 	r.Conn.Close()
 }
 
@@ -63,6 +64,19 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 	}
 
 	return nil
+}
+
+func (r *Channel) IsClosed(err error) bool {
+	if !r.Closed {
+		return false
+	}
+
+	opErr, ok := err.(*net.OpError)
+	if !ok {
+		return false
+	}
+
+	return opErr.Err.Error() == "use of closed network connection"
 }
 
 func ReadFully(len int, conn net.Conn) ([]byte, error) {

@@ -43,7 +43,7 @@ func (r *Command) CreateResponseCommand() *Command {
 	if r.IsOnewayRPC() {
 		c.MarkOnewayRPC()
 	} else {
-		c.Flag = 1
+		c.MarkResponseType()
 	}
 
 	c.Code = r.Code

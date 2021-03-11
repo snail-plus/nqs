@@ -40,14 +40,16 @@ func (r *Remoting) AddChannel(addr string, conn net.Conn) *ch.Channel {
 	return channel
 }
 
-func (r *Remoting) CloseChannel(channel *ch.Channel) {
+func (r *Remoting) RemoveChannel(channel *ch.Channel) {
 	r.ConnectionTable.Range(func(key, value interface{}) bool {
 		if value == channel {
 			r.ConnectionTable.Delete(channel)
+			log.Infof("RemoveChannel: %s", channel.Conn.RemoteAddr().String())
+			return false
+		} else {
+			return true
 		}
-		return true
 	})
-	channel.Destroy()
 }
 
 func (r *Remoting) ScanConnectionTable() {
@@ -72,16 +74,19 @@ func (r *Remoting) ScanConnectionTable() {
 func (r *Remoting) Start() {
 	r.once.Do(func() {
 		r.cron = cron.New()
-		r.cron.AddFunc("./10 * * * * ?", func() {
+		err := r.cron.AddFunc("*/10 * * * * ?", func() {
 			r.ScanConnectionTable()
 		})
+		if err != nil {
+			log.Error("AddFunc error: %v", err)
+		}
 	})
 }
 
 func (r *Remoting) processMessageReceived(command *protocol.Command, channel *ch.Channel) {
 
 	// 处理响应
-	if command.IsResponseType() {
+	if command.IsResponseType() || command.Code == 0 {
 		r.processResponseCommand(command, channel)
 		return
 	}
@@ -91,7 +96,7 @@ func (r *Remoting) processMessageReceived(command *protocol.Command, channel *ch
 	if !ok {
 		var errorCommand = &protocol.Command{Code: code.SystemError, Opaque: command.Opaque, Flag: 1}
 		channel.WriteCommand(errorCommand)
-		log.Errorf("Code: %d 没有找到对应的处理器", command.Code)
+		log.Errorf("Code: %d 没有找到对应的处理器, Flag: %d", command.Code, command.Flag)
 		return
 	}
 
@@ -154,5 +159,7 @@ func (r *Remoting) ReadMessage(channel *ch.Channel) {
 
 	}
 
+	channel.Destroy()
+	r.RemoveChannel(channel)
 	log.Warnf("读完成,conn: %s", conn.RemoteAddr().String())
 }
