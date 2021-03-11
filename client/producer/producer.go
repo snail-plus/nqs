@@ -39,6 +39,7 @@ func (p *defaultProducer) Start() error {
 func (p *defaultProducer) SendSync(ctx context.Context, msg *message.Message) (*inner.SendResult, error) {
 	command := protocol.CreatesRequestCommand()
 	command.Code = code.SendMessage
+	command.Body = msg.Body
 	command.CustomHeader = message.SendMessageRequestHeader{
 		ProducerGroup: p.group,
 		Topic:         msg.Topic,

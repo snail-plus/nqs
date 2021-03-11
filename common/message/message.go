@@ -30,7 +30,7 @@ type MessageExt struct {
 
 func (r MessageExt) String() string {
 	return fmt.Sprintf("Message[MsgId: %s, topic: %s, queueOffset:%d, storeHost:%s, Body: %s]",
-		r.MsgId, r.Topic, r.QueueOffset, r.StoreHost, string(r.Body))
+		r.MsgId, r.Topic, r.QueueOffset, r.StoreHost, string(r.Message.Body))
 }
 
 type CommandCustomHeader interface {

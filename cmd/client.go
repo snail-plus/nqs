@@ -24,7 +24,7 @@ func main() {
 
 	msg := &message.Message{
 		Topic: "testTopic",
-		Body:  nil,
+		Body:  []byte("abcd"),
 		Flag:  0,
 	}
 
