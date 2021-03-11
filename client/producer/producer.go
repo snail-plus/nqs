@@ -21,7 +21,7 @@ type defaultProducer struct {
 }
 
 func NewDefaultProducer(group string) (*defaultProducer, error) {
-	mqClient := client.GetOrNewRocketMQClient("xxx", client.Namesrvs{})
+	mqClient := client.GetOrNewRocketMQClient(client.Namesrvs{})
 	return &defaultProducer{
 		group:    group,
 		client:   mqClient,

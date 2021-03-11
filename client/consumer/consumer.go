@@ -154,7 +154,7 @@ type PushConsumer struct {
 
 func NewPushConsumer(group, topic string) (*PushConsumer, error) {
 	namesrvs := client.Namesrvs{}
-	mqClient := client.GetOrNewRocketMQClient("sss", namesrvs)
+	mqClient := client.GetOrNewRocketMQClient(namesrvs)
 	dc := &defaultConsumer{
 		consumerGroup: group,
 		client:        mqClient,

@@ -107,6 +107,10 @@ func (r *Remoting) processMessageReceived(command *protocol.Command, channel *ch
 }
 
 func (r *Remoting) processResponseCommand(command *protocol.Command, channel *ch.Channel) {
+	if command.Flag == 2 {
+		return
+	}
+
 	value, ok := r.ResponseTable.Load(command.Opaque)
 
 	if !ok {

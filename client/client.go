@@ -40,19 +40,25 @@ type RMQClient struct {
 
 var clientMap sync.Map
 
-func GetOrNewRocketMQClient(clientId string, namesrvs Namesrvs) *RMQClient {
-	actual, loaded := clientMap.Load(clientId)
+func GetOrNewRocketMQClient(namesrvs Namesrvs) *RMQClient {
+	client := &RMQClient{
+		RemoteClient: remoting.CreateClient(),
+		cron:         cron.New(),
+		consumerMap:  &sync.Map{},
+		producerMap:  &sync.Map{},
+		namesrv:      namesrvs,
+	}
+	actual, loaded := clientMap.LoadOrStore(client.ClientID(), client)
 	if !loaded {
-		return &RMQClient{
-			RemoteClient: remoting.CreateClient(),
-			cron:         cron.New(),
-			consumerMap:  &sync.Map{},
-			producerMap:  &sync.Map{},
-			namesrv:      namesrvs,
-		}
+		// TODO RebalanceImmediately 等
 	}
 
 	return actual.(*RMQClient)
+}
+
+func (r *RMQClient) ClientID() string {
+	id := util.GetLocalAddress() + "@" + strconv.Itoa(os.Getpid())
+	return id
 }
 
 func (r *RMQClient) RegisterConsumer(group string, consumer InnerConsumer) error {
