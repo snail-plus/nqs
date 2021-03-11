@@ -116,8 +116,7 @@ func (r *RMQClient) PullMessage(addr, topic, group string, offset int64, queueId
 	command.Code = code.PullMessage
 	command.CustomHeader = header
 
-	ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
-	response, err := r.RemoteClient.InvokeSync(ctx, addr, command)
+	response, err := r.RemoteClient.InvokeSync(context.Background(), addr, command)
 	if err != nil {
 		return nil, err
 	}
