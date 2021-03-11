@@ -5,6 +5,7 @@ import (
 	"container/list"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/henrylee2cn/goutil/calendar/cron"
 	log "github.com/sirupsen/logrus"
@@ -180,4 +181,30 @@ func (r *RMQClient) RegisterProducer(group string, p InnerProducer) {
 
 func (r *RMQClient) InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error) {
 	return r.RemoteClient.InvokeSync(ctx, addr, command)
+}
+
+func (r *RMQClient) InvokeASync(ctx context.Context, addr string, request *protocol.Command, f func(*protocol.Command, error)) error {
+	return r.RemoteClient.InvokeAsync(ctx, addr, request, f)
+}
+
+func (r *RMQClient) ProcessSendResponse(brokerName string, cmd *protocol.Command, resp *inner.SendResult, msgs ...*message.Message) error {
+	var sendStatus inner.SendStatus
+	switch cmd.Code {
+	case code.Success:
+		sendStatus = inner.SendOK
+	default:
+		return errors.New("发送失败")
+	}
+
+	header := &message.SendMessageResponseHeader{}
+	err := util.MapToStruct(cmd.ExtFields, header)
+	if err != nil {
+		return err
+	}
+
+	resp.Status = sendStatus
+	resp.MsgID = header.MsgId
+	resp.QueueOffset = header.QueueOffset
+
+	return nil
 }

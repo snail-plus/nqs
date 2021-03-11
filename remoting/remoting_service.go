@@ -17,7 +17,7 @@ import (
 
 type Remote interface {
 	InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error)
-	InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error))
+	InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error)) error
 	InvokeOneWay(ctx context.Context, addr string, command *protocol.Command) error
 	AddChannel(addr string, conn net.Conn) *ch.Channel
 	Shutdown()

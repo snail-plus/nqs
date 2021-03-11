@@ -84,8 +84,8 @@ func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *pr
 	return response, err
 }
 
-func (r *DefaultServer) InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error)) {
-
+func (r *DefaultServer) InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error)) error {
+	return nil
 }
 
 func (r *DefaultServer) Start(b *BrokerController) {

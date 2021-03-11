@@ -48,10 +48,43 @@ func (p *defaultProducer) SendSync(ctx context.Context, msg *message.Message) (*
 
 	// 从nameserv 获取地址 选择队列
 	addr := p.namesrvs.FindBrokerAddrByName("aaa")
-	_, err := p.client.InvokeSync(ctx, addr, command)
+	response, err := p.client.InvokeSync(ctx, addr, command)
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, nil
+	result := &inner.SendResult{Status: inner.SendUnknownError}
+	err = p.client.ProcessSendResponse("aaa", response, result, msg)
+	if err != nil {
+		return nil, err
+	}
+
+	return result, nil
+}
+
+func (p *defaultProducer) SendAsync(ctx context.Context, msg *message.Message, h func(context.Context, *inner.SendResult, error)) error {
+	request := protocol.CreatesRequestCommand()
+	request.Code = code.SendMessage
+	request.CustomHeader = message.SendMessageRequestHeader{
+		ProducerGroup: p.group,
+		Topic:         msg.Topic,
+		QueueId:       1,
+		BornTimestamp: time.Now().Unix(),
+	}
+
+	// 从nameserv 获取地址 选择队列
+	addr := p.namesrvs.FindBrokerAddrByName("aaa")
+
+	ctx, _ = context.WithTimeout(ctx, 3*time.Second)
+	p.client.InvokeASync(ctx, addr, request, func(command *protocol.Command, err error) {
+		if err != nil {
+			h(ctx, nil, err)
+		} else {
+			result := &inner.SendResult{Status: inner.SendUnknownError}
+			err := p.client.ProcessSendResponse("aaa", command, result, msg)
+			h(ctx, result, err)
+		}
+	})
+
+	return nil
 }

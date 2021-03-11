@@ -34,7 +34,7 @@ func main() {
 		return
 	}
 
-	log.Infof("send result: %v", result)
+	log.Infof("send result: %+v", result)
 
 	pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")
 	if err != nil {

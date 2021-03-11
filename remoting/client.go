@@ -89,11 +89,10 @@ func (r *DefaultClient) InvokeSync(ctx context.Context, addr string, command *pr
 	return response, err
 }
 
-func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error)) {
+func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *protocol.Command, invokeCallback func(*protocol.Command, error)) error {
 	channel, err := r.getOrCreateChannel(ctx, addr)
 	if err != nil {
-		invokeCallback(nil, err)
-		return
+		return err
 	}
 
 	future := &ResponseFuture{
@@ -109,9 +108,10 @@ func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *p
 
 	err = channel.WriteToConn(command)
 	if err != nil {
-		invokeCallback(nil, err)
+		return err
 	}
 
+	return nil
 }
 
 func (r *DefaultClient) Shutdown() {
