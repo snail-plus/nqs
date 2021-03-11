@@ -80,6 +80,7 @@ func (r *RemoteBrokerOffsetStore) persist(mqs []*message.MessageQueue) {
 }
 
 func (r *RemoteBrokerOffsetStore) updateConsumeOffsetToBroker(group string, mq message.MessageQueue, off int64) error {
+	log.Infof("group: %s, off: %d", group, off)
 	addr := r.namesrv.FindBrokerAddrByName(mq.BrokerName)
 	header := message.UpdateConsumerOffsetRequestHeader{
 		ConsumerGroup: group,

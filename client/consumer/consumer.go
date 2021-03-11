@@ -263,7 +263,7 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 				// TODO 更新Offset
 				pc.storage.update(request.Mq, request.NextOffset, false)
 			case inner.NoNewMsg:
-				time.Sleep(10 * time.Second)
+				time.Sleep(1 * time.Second)
 			default:
 				time.Sleep(100 * time.Millisecond)
 				continue
