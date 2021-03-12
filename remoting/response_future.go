@@ -41,6 +41,8 @@ func (r *ResponseFuture) PutResponse(command protocol.Command) {
 
 func (r *ResponseFuture) IsTimeout() bool {
 	select {
+	case <-r.DoneChan:
+		return false
 	case <-r.Ctx.Done():
 		return true
 	default:

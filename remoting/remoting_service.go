@@ -52,7 +52,7 @@ func (r *Remoting) RemoveChannel(channel *ch.Channel) {
 	})
 }
 
-func (r *Remoting) ScanConnectionTable() {
+func (r *Remoting) ScanResponseTable() {
 	var futureList = make([]*ResponseFuture, 0)
 	r.ResponseTable.Range(func(key, value interface{}) bool {
 		future := value.(*ResponseFuture)
@@ -75,7 +75,7 @@ func (r *Remoting) Start() {
 	r.once.Do(func() {
 		r.cron = cron.New()
 		err := r.cron.AddFunc("*/10 * * * * ?", func() {
-			r.ScanConnectionTable()
+			r.ScanResponseTable()
 		})
 		if err != nil {
 			log.Error("AddFunc error: %v", err)
