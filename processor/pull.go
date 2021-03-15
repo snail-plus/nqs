@@ -65,7 +65,7 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	case store.Found:
 		body := s.readGetMessageResult(getMessageResult)
 		response.Body = body
-		break
+
 	case store.NoMessageInQueue, store.OffsetOverflowOne:
 		if requestHeader.SuspendTimeoutMillis > 0 {
 			pullRequest := &longpolling.PullRequest{
@@ -80,7 +80,6 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 		} else {
 			response.Code = int32(store.NoMessageInQueue)
 		}
-		break
 	default:
 		response.Code = int32(store.NoMessageInQueue)
 	}
