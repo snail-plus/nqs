@@ -3,6 +3,7 @@ package broker
 import (
 	"container/list"
 	"fmt"
+	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
 	"nqs/broker/longpolling"
 	"nqs/code"
@@ -48,11 +49,14 @@ type PullRequestHoldService struct {
 	msgStore store.MessageStore
 
 	pullRequestTable sync.Map //map[string]*ManyPullRequest
+	pool             *ants.Pool
 }
 
 func NewPullRequestHoldService(msgStore store.MessageStore) longpolling.LongPolling {
+	pool, _ := ants.NewPool(5, ants.WithPreAlloc(true))
 	return &PullRequestHoldService{
 		msgStore: msgStore,
+		pool:     pool,
 	}
 }
 
@@ -121,7 +125,9 @@ func (r *PullRequestHoldService) NotifyMessageArriving(topic string, queueId int
 			var suspendTimeoutMillis int64 = 0
 			command.ExtFields["SuspendTimeoutMillis"] = suspendTimeoutMillis
 			// log.Infof("有新消息 通知 PullProcessor 读取消息, Opaque: %d", command.Opaque)
-			go processor.PMap[code.PullMessage].Processor.ProcessRequest(command, pullRequest.ClientChannel)
+			r.pool.Submit(func() {
+				processor.PMap[code.PullMessage].Processor.ProcessRequest(command, pullRequest.ClientChannel)
+			})
 			continue
 		}
 

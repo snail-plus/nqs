@@ -1,7 +1,6 @@
 package longpolling
 
 import (
-	log "github.com/sirupsen/logrus"
 	ch "nqs/remoting/channel"
 	"nqs/remoting/protocol"
 )
@@ -26,6 +25,6 @@ type NotifyMessageArrivingListener struct {
 }
 
 func (r *NotifyMessageArrivingListener) Arriving(topic string, queueId int32, logicOffset int64) {
-	log.Infof("有新消息存储 offset: %d 调用NotifyMessageArriving", logicOffset)
+	// log.Infof("有新消息存储 offset: %d 调用NotifyMessageArriving", logicOffset)
 	r.LongPolling.NotifyMessageArriving(topic, int(queueId), logicOffset)
 }

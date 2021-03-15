@@ -39,8 +39,9 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	log.Debugf("收到查询msg 请求, topic: %s, offset: %d", requestHeader.Topic, requestHeader.QueueOffset)
 
 	offset := requestHeader.QueueOffset
-	manager := s.Store.ConsumerOffsetManager.Config.(*store.ConsumerOffsetManager)
+
 	if offset < 0 {
+		manager := s.Store.ConsumerOffsetManager.Config.(*store.ConsumerOffsetManager)
 		queryOffset := manager.QueryOffset(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId)
 		if queryOffset > 0 {
 			requestHeader.QueueOffset = queryOffset

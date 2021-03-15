@@ -163,7 +163,7 @@ func NewPushConsumer(group, topic string) (*PushConsumer, error) {
 	}
 
 	mq := message.MessageQueue{Topic: topic, QueueId: 1}
-	pq := ProcessQueue{MsgCh: make(chan []*message.MessageExt, 10)}
+	pq := ProcessQueue{MsgCh: make(chan []*message.MessageExt, 100)}
 
 	dc.prCh <- PullRequest{
 		ConsumerGroup: group,
@@ -215,7 +215,8 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 		for {
 			select {
 			case <-pc.done:
-				println("")
+				log.Info("pc done")
+				break
 			default:
 				pq := request.Pq
 				exts := <-pq.MsgCh
@@ -258,7 +259,7 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 				msgList = append(msgList, item.Value.(*message.MessageExt))
 			}
 
-			log.Infof("准备下一次pull")
+			// log.Infof("准备下一次pull")
 			request.Pq.MsgCh <- msgList
 			// TODO 更新Offset
 			pc.storage.update(request.Mq, request.NextOffset, false)
