@@ -29,7 +29,7 @@ func main() {
 			Flag:  0,
 		}
 
-		for i := 0; i < 3; i++ {
+		for i := 0; i < 10; i++ {
 			ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 			result, err2 := defaultProducer.SendSync(ctx, msg)
 			if err2 != nil {
@@ -37,7 +37,7 @@ func main() {
 			}
 
 			log.Infof("send result: %+v", result)
-			time.Sleep(1 * time.Second)
+			// time.Sleep(1 * time.Second)
 		}
 	})
 
