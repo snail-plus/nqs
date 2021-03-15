@@ -16,7 +16,7 @@ const addr = "localhost:8089"
 
 func main() {
 
-	time.AfterFunc(5*time.Second, func() {
+	time.AfterFunc(3*time.Second, func() {
 		defaultProducer, err2 := producer.NewDefaultProducer("xx")
 
 		if err2 != nil {

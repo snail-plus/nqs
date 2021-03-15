@@ -8,6 +8,7 @@ import (
 	"nqs/common/message"
 	"nqs/remoting/protocol"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -22,6 +23,7 @@ type RemoteBrokerOffsetStore struct {
 	group       string
 	mqClient    *client.RMQClient
 	namesrv     client.Namesrvs
+	counter     int64
 }
 
 func NewRemoteOffsetStore(group string, client *client.RMQClient, namesrv client.Namesrvs) OffsetStore {
@@ -80,7 +82,13 @@ func (r *RemoteBrokerOffsetStore) persist(mqs []*message.MessageQueue) {
 }
 
 func (r *RemoteBrokerOffsetStore) updateConsumeOffsetToBroker(group string, mq message.MessageQueue, off int64) error {
-	log.Infof("group: %s, off: %d", group, off)
+	counter := atomic.AddInt64(&r.counter, 1)
+	r.counter = counter
+
+	if counter%10 == 0 {
+		log.Infof("group: %s, off: %d", group, off)
+	}
+
 	addr := r.namesrv.FindBrokerAddrByName(mq.BrokerName)
 	header := message.UpdateConsumerOffsetRequestHeader{
 		ConsumerGroup: group,

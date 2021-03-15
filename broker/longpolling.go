@@ -83,7 +83,6 @@ func (r *PullRequestHoldService) checkHoldRequest() {
 }
 
 func (r *PullRequestHoldService) SuspendPullRequest(topic string, queueId int32, pullRequest *longpolling.PullRequest) {
-	log.Infof("SuspendPullRequest topic: %s", topic)
 	key := topic + TopicQueueIdSeparator + fmt.Sprintf("%d", queueId)
 
 	manyPullRequest := &ManyPullRequest{pullRequestList: list.New()}
@@ -122,7 +121,7 @@ func (r *PullRequestHoldService) NotifyMessageArriving(topic string, queueId int
 		if newestOffset > pullRequest.PullFromThisOffset {
 			var suspendTimeoutMillis int64 = 0
 			command.ExtFields["SuspendTimeoutMillis"] = suspendTimeoutMillis
-			log.Infof("有新消息 通知 PullProcessor 读取消息")
+			log.Infof("有新消息 通知 PullProcessor 读取消息, Opaque: %d", command.Opaque)
 			go processor.PMap[code.PullMessage].Processor.ProcessRequest(command, pullRequest.ClientChannel)
 			continue
 		}
@@ -132,7 +131,7 @@ func (r *PullRequestHoldService) NotifyMessageArriving(topic string, queueId int
 		if timeOutMillis < (time.Now().UnixNano() / 1e6) {
 			var suspendTimeoutMillis int64 = 0
 			command.ExtFields["SuspendTimeoutMillis"] = suspendTimeoutMillis
-			log.Infof("SuspendPullRequest 超时 PullProcessor 读取消息")
+			log.Debugf("SuspendPullRequest 超时 PullProcessor 读取消息, Opaque: %d", command.Opaque)
 			go processor.PMap[code.PullMessage].Processor.ProcessRequest(command, pullRequest.ClientChannel)
 			continue
 		}

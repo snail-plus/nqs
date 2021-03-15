@@ -99,7 +99,7 @@ func (r *RMQClient) Start() {
 			return
 		}
 
-		log.Infof("心跳返回: %v", heartbeat)
+		log.Debugf("心跳返回: %v", heartbeat)
 	})
 
 }

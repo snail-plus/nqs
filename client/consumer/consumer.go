@@ -236,7 +236,6 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 
 		// TODO 从name server 获取
 		addr := "localhost:8089"
-		log.Infof("发起pull 请求")
 		pullResult, err := pc.client.PullMessage(addr, request.Mq.Topic, request.ConsumerGroup, request.NextOffset, int32(request.Mq.QueueId), 23)
 		if err != nil {
 			log.Errorf("PullMessage 超时, err: %s", err.Error())
@@ -259,13 +258,11 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 				msgList = append(msgList, item.Value.(*message.MessageExt))
 			}
 
+			log.Infof("准备下一次pull")
 			request.Pq.MsgCh <- msgList
 			// TODO 更新Offset
 			pc.storage.update(request.Mq, request.NextOffset, false)
-		case inner.NoNewMsg:
-			time.Sleep(1 * time.Second)
 		default:
-			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 	}
