@@ -111,12 +111,14 @@ func (r *RMQClient) PullMessage(addr, topic, group string, offset int64, queueId
 	header.MaxMsgNums = maxMsgCount
 	header.QueueOffset = offset
 	header.ConsumerGroup = group
+	header.SuspendTimeoutMillis = 1000 * 15
 
 	command := protocol.CreatesRequestCommand()
 	command.Code = code.PullMessage
 	command.CustomHeader = header
 
-	response, err := r.RemoteClient.InvokeSync(context.Background(), addr, command)
+	ctx, _ := context.WithTimeout(context.Background(), 16*time.Second)
+	response, err := r.RemoteClient.InvokeSync(ctx, addr, command)
 	if err != nil {
 		return nil, err
 	}

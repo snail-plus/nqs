@@ -10,6 +10,7 @@ var index int32 = 0
 
 const RpcOneway = 1
 const RpcType = 0
+const ResponseType = 1
 
 type Command struct {
 	Body []byte `json:"-"`
@@ -78,11 +79,9 @@ func (r *Command) IsOnewayRPC() bool {
 }
 
 func (r *Command) MarkResponseType() {
-	bits := int32(1 << RpcType)
-	r.Flag |= bits
+	r.Flag = r.Flag | ResponseType
 }
 
 func (r *Command) IsResponseType() bool {
-	bits := int32(1 << RpcType)
-	return (r.Flag & bits) == bits
+	return r.Flag&(ResponseType) == ResponseType
 }

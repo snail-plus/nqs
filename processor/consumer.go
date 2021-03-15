@@ -20,7 +20,7 @@ func (r *ConsumerManageProcessor) Reject() bool {
 }
 
 func (r *ConsumerManageProcessor) ProcessRequest(command *protocol.Command, channel *channel.Channel) {
-	log.Infof(" 收到请求：%+v", command)
+	log.Debugf(" 收到请求：%+v", command)
 
 	switch command.Code {
 	case code.QueryConsumerOffset:
@@ -67,7 +67,7 @@ func (r *ConsumerManageProcessor) queryConsumerOffset(command *protocol.Command,
 
 	consumerOffsetManager := r.Store.ConsumerOffsetManager.Config.(*store.ConsumerOffsetManager)
 	offset := consumerOffsetManager.QueryOffset(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId)
-	log.Infof("group: %s, topic: %s, queueId: %d, offset: %d", requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId, offset)
+	log.Debugf("group: %s, topic: %s, queueId: %d, offset: %d", requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId, offset)
 	responseHeader := message.QueryConsumerOffsetResponseHeader{Offset: offset}
 	response := command.CreateResponseCommand()
 	response.CustomHeader = responseHeader

@@ -54,7 +54,7 @@ func (r *ConsumerOffsetManager) CommitOffset(clientHost, group, topic string, qu
 		offsetMap[queueId] = offset
 	}
 
-	log.Infof("CommitOffset client: %s, offset: %d, OffsetTable: %v, %p", clientHost, offset, r.OffsetTable, r)
+	log.Debugf("CommitOffset client: %s, offset: %d, OffsetTable: %v, %p", clientHost, offset, r.OffsetTable, r)
 }
 
 func (r *ConsumerOffsetManager) QueryOffset(group, topic string, queueId int32) int64 {

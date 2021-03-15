@@ -3,16 +3,18 @@ package broker
 import (
 	"github.com/henrylee2cn/goutil/calendar/cron"
 	log "github.com/sirupsen/logrus"
+	"nqs/broker/longpolling"
 	"nqs/common"
 	"nqs/store"
 )
 
 type BrokerController struct {
-	Server                *DefaultServer
-	Store                 *store.DefaultMessageStore
-	ConsumerOffsetManager *common.ConfigManager
-
-	cron *cron.Cron
+	Server                  *DefaultServer
+	Store                   *store.DefaultMessageStore
+	ConsumerOffsetManager   *common.ConfigManager
+	PullRequestHoldService  longpolling.LongPolling
+	MessageArrivingListener store.MessageArrivingListener
+	cron                    *cron.Cron
 }
 
 func Initialize() *BrokerController {
@@ -26,6 +28,12 @@ func Initialize() *BrokerController {
 
 	b.Store = store.NewStore()
 	b.Store.ConsumerOffsetManager = b.ConsumerOffsetManager
+
+	b.PullRequestHoldService = NewPullRequestHoldService(b.Store)
+	b.PullRequestHoldService.Start()
+
+	b.Store.MessageArrivingListener = &longpolling.NotifyMessageArrivingListener{LongPolling: b.PullRequestHoldService}
+
 	loadOk := b.Store.Load()
 
 	loadOk = loadOk && b.ConsumerOffsetManager.Load()

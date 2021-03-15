@@ -22,6 +22,7 @@ type MessageStore interface {
 	Load() bool
 	Start()
 	Shutdown()
+	GetMaxOffsetInQueue(topic string, queueId int32) int64
 	PutMessages(*MessageExtBrokerInner) *PutMessageResult
 	GetMessage(group string, topic string, offset int64, queueId, maxMsgNums int32) *GetMessageResult
 	DoDispatch(request *DispatchRequest)
@@ -44,6 +45,8 @@ type DefaultMessageStore struct {
 	flushConsumeQueue FlushConsumeQueue
 
 	ConsumerOffsetManager *common.ConfigManager
+
+	MessageArrivingListener MessageArrivingListener
 }
 
 func (r *DefaultMessageStore) Load() bool {
@@ -105,6 +108,15 @@ func (r *DefaultMessageStore) Start() {
 
 }
 
+func (r DefaultMessageStore) GetMaxOffsetInQueue(topic string, queueId int32) int64 {
+	logic := r.findConsumeQueue(topic, queueId)
+	if logic != nil {
+		return logic.GetMaxOffsetInQueue()
+	}
+
+	return 0
+}
+
 func (r *DefaultMessageStore) Shutdown() {
 	close(r.stop)
 
@@ -146,6 +158,8 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 
 	minOffset := consumeQueue.GetMinOffsetInQueue()
 	maxOffset := consumeQueue.GetMaxOffsetInQueue()
+
+	log.Infof("pull offset: %d, consumeQueue maxOffset: %d", offset, maxOffset)
 	getResult.MinOffset = minOffset
 	getResult.MaxOffset = maxOffset
 
@@ -344,7 +358,7 @@ func (r *RePutMessageService) Start() {
 	r.DaemonTask.Run = func() {
 		log.Infof("start rePut service, 索引队列存储的commitLog最后一个消息的物理offset, RePutFromOffset: %d", r.RePutFromOffset)
 		for !r.IsStopped() {
-			time.Sleep(1 * time.Second)
+			time.Sleep(2 * time.Millisecond)
 			r.doRePut()
 		}
 	}
@@ -388,6 +402,7 @@ func (r *RePutMessageService) doRePut() {
 			}
 
 			r.msgStore.DoDispatch(dispatchRequest)
+			r.msgStore.(*DefaultMessageStore).MessageArrivingListener.Arriving(dispatchRequest.topic, dispatchRequest.queueId, dispatchRequest.consumeQueueOffset+1)
 			r.RePutFromOffset = r.RePutFromOffset + int64(dispatchRequest.msgSize)
 			readSize += int(msgSize)
 		}

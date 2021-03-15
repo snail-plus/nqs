@@ -236,38 +236,37 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 
 		// TODO 从name server 获取
 		addr := "localhost:8089"
-		for {
-			pullResult, err := pc.client.PullMessage(addr, request.Mq.Topic, request.ConsumerGroup, request.NextOffset, int32(request.Mq.QueueId), 23)
-			if err != nil {
-				log.Errorf("err: %s", err.Error())
-				continue
-			}
-			request.NextOffset = pullResult.NextBeginOffset
+		log.Infof("发起pull 请求")
+		pullResult, err := pc.client.PullMessage(addr, request.Mq.Topic, request.ConsumerGroup, request.NextOffset, int32(request.Mq.QueueId), 23)
+		if err != nil {
+			log.Errorf("PullMessage 超时, err: %s", err.Error())
+			continue
+		}
 
-			switch pullResult.PullStatus {
-			case inner.Found:
+		request.NextOffset = pullResult.NextBeginOffset
+		switch pullResult.PullStatus {
+		case inner.Found:
 
-				msgFoundList := pullResult.MsgFoundList
-				if msgFoundList.Len() == 0 {
-					time.Sleep(1 * time.Second)
-					continue
-				}
-
-				log.Debugf("查到消息条数：%d, NextBeginOffset: %d", msgFoundList.Len(), pullResult.NextBeginOffset)
-				msgList := make([]*message.MessageExt, 0)
-				for item := msgFoundList.Front(); item != nil; item = item.Next() {
-					msgList = append(msgList, item.Value.(*message.MessageExt))
-				}
-				request.Pq.MsgCh <- msgList
-
-				// TODO 更新Offset
-				pc.storage.update(request.Mq, request.NextOffset, false)
-			case inner.NoNewMsg:
+			msgFoundList := pullResult.MsgFoundList
+			if msgFoundList.Len() == 0 {
 				time.Sleep(1 * time.Second)
-			default:
-				time.Sleep(100 * time.Millisecond)
 				continue
 			}
+
+			log.Debugf("查到消息条数：%d, NextBeginOffset: %d", msgFoundList.Len(), pullResult.NextBeginOffset)
+			msgList := make([]*message.MessageExt, 0)
+			for item := msgFoundList.Front(); item != nil; item = item.Next() {
+				msgList = append(msgList, item.Value.(*message.MessageExt))
+			}
+
+			request.Pq.MsgCh <- msgList
+			// TODO 更新Offset
+			pc.storage.update(request.Mq, request.NextOffset, false)
+		case inner.NoNewMsg:
+			time.Sleep(1 * time.Second)
+		default:
+			time.Sleep(100 * time.Millisecond)
+			continue
 		}
 	}
 }

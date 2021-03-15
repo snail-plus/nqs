@@ -57,5 +57,5 @@ func (r *ConfigManager) Persist() {
 		log.Errorf("persist file: %s error: %s", fileName, err.Error())
 	}
 
-	log.Infof("fileName: %s Persist ok", fileName)
+	log.Debugf("fileName: %s Persist ok", fileName)
 }

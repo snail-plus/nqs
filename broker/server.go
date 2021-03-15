@@ -38,7 +38,7 @@ func (r *DefaultServer) registerProcessor(b *BrokerController) {
 
 	processor.PMap[code.Heartbeat] = processor.Pair{Pool: defaultPool, Processor: &processor.HeartbeatProcessor{Name: "Heartbeat"}}
 	processor.PMap[code.SendMessage] = processor.Pair{Pool: sendMsgPool, Processor: &processor.SendMessageProcessor{Name: "Send", Store: b.Store}}
-	processor.PMap[code.PullMessage] = processor.Pair{Pool: defaultPool, Processor: &processor.PullMessageProcessor{Name: "Pull", Store: b.Store}}
+	processor.PMap[code.PullMessage] = processor.Pair{Pool: defaultPool, Processor: &processor.PullMessageProcessor{Name: "Pull", Store: b.Store, PullRequestHoldService: b.PullRequestHoldService}}
 
 	processor.PMap[code.QueryConsumerOffset] = processor.Pair{Pool: defaultPool, Processor: &processor.ConsumerManageProcessor{Name: "Consumer", Store: b.Store}}
 	processor.PMap[code.UpdateConsumerOffset] = processor.Pair{Pool: defaultPool, Processor: &processor.ConsumerManageProcessor{Name: "Consumer", Store: b.Store}}

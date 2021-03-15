@@ -3,17 +3,20 @@ package processor
 import (
 	"bytes"
 	log "github.com/sirupsen/logrus"
+	"nqs/broker/longpolling"
 	"nqs/code"
 	"nqs/common/message"
 	"nqs/remoting/channel"
 	"nqs/remoting/protocol"
 	"nqs/store"
 	"nqs/util"
+	"time"
 )
 
 type PullMessageProcessor struct {
-	Name  string
-	Store *store.DefaultMessageStore
+	Name                   string
+	Store                  *store.DefaultMessageStore
+	PullRequestHoldService longpolling.LongPolling
 }
 
 func (s *PullMessageProcessor) Reject() bool {
@@ -23,46 +26,66 @@ func (s *PullMessageProcessor) Reject() bool {
 func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel *channel.Channel) {
 
 	response := request.CreateResponseCommand()
-	defer channel.WriteCommand(response)
 
 	requestHeader := message.PullMessageRequestHeader{}
 	err := util.MapToStruct(request.ExtFields, &requestHeader)
 	if err != nil {
 		response.Code = code.SystemError
 		log.Error("MapToStruct error: " + err.Error())
+		channel.WriteCommand(response)
 		return
 	}
+
+	log.Debugf("收到查询msg 请求, topic: %s, offset: %d", requestHeader.Topic, requestHeader.QueueOffset)
 
 	offset := requestHeader.QueueOffset
 	manager := s.Store.ConsumerOffsetManager.Config.(*store.ConsumerOffsetManager)
 	if offset < 0 {
 		queryOffset := manager.QueryOffset(requestHeader.ConsumerGroup, requestHeader.Topic, requestHeader.QueueId)
 		if queryOffset > 0 {
+			requestHeader.QueueOffset = queryOffset
 			offset = queryOffset
 		}
 		log.Infof("修复offset: %d", queryOffset)
 	}
 
-	getMessage := s.Store.GetMessage(requestHeader.ConsumerGroup, requestHeader.Topic, offset, requestHeader.QueueId, requestHeader.MaxMsgNums)
-	getMessageStatus := int32(getMessage.Status)
+	getMessageResult := s.Store.GetMessage(requestHeader.ConsumerGroup, requestHeader.Topic, offset, requestHeader.QueueId, requestHeader.MaxMsgNums)
+	getMessageStatus := int32(getMessageResult.Status)
 
 	responseHeader := message.PullMessageResponseHeader{
-		NextBeginOffset: getMessage.NextBeginOffset,
-		MinOffset:       getMessage.MinOffset,
-		MaxOffset:       getMessage.MaxOffset,
+		NextBeginOffset: getMessageResult.NextBeginOffset,
+		MinOffset:       getMessageResult.MinOffset,
+		MaxOffset:       getMessageResult.MaxOffset,
 	}
 
 	response.Code = getMessageStatus
 	response.CustomHeader = responseHeader
 
-	if getMessage.Status != store.Found {
-		response.Code = int32(getMessage.Status)
-		return
+	switch getMessageResult.Status {
+	case store.Found:
+		body := s.readGetMessageResult(getMessageResult)
+		response.Body = body
+		break
+	case store.NoMessageInQueue, store.OffsetOverflowOne:
+		if requestHeader.SuspendTimeoutMillis > 0 {
+			pullRequest := &longpolling.PullRequest{
+				ClientChannel:      channel,
+				PullFromThisOffset: requestHeader.QueueOffset,
+				RequestCommand:     request,
+				TimeoutMillis:      requestHeader.SuspendTimeoutMillis,
+				SuspendTimestamp:   time.Now().UnixNano() / 1e6,
+			}
+			s.PullRequestHoldService.SuspendPullRequest(requestHeader.Topic, requestHeader.QueueId, pullRequest)
+			response = nil
+		} else {
+			response.Code = int32(store.NoMessageInQueue)
+		}
+		break
+	default:
+		response.Code = int32(store.NoMessageInQueue)
 	}
 
-	body := s.readGetMessageResult(getMessage)
-
-	response.Body = body
+	channel.WriteCommand(response)
 }
 
 func (s *PullMessageProcessor) readGetMessageResult(getResult *store.GetMessageResult) []byte {

@@ -81,7 +81,7 @@ func (r *MappedFile) AppendMessageBytes(data []byte) bool {
 		r.wrotePosition = atomic.AddInt32(&r.wrotePosition, int32(len(data)))
 		return true
 	}
-
+	log.Infof("AppendMessageBytes, fileName: %s, wrotePosition: %d, maxOffset: %d ", r.fileName, r.wrotePosition)
 	return false
 }
 

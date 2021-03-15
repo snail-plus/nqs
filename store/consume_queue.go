@@ -89,7 +89,9 @@ func (r *ConsumeQueue) putMessagePositionInfo(offset int64, size int32, tagsCode
 
 	r.maxPhysicOffset = offset + int64(size)
 	msgBytes := r.byteBufferIndex.Bytes()
-	return mappedFile.AppendMessageBytes(msgBytes)
+	appendResult := mappedFile.AppendMessageBytes(msgBytes)
+	log.Infof("ConsumeQueue maxOffset: %d", r.GetMaxOffsetInQueue())
+	return appendResult
 }
 
 func (r *ConsumeQueue) fillPreBlank(mappedFile *MappedFile, untilWhere int64) {

@@ -59,11 +59,12 @@ func (r SendMessageResponseHeader) checkFields() {
 }
 
 type PullMessageRequestHeader struct {
-	ConsumerGroup string
-	Topic         string
-	QueueOffset   int64
-	MaxMsgNums    int32
-	QueueId       int32
+	ConsumerGroup        string
+	Topic                string
+	QueueOffset          int64
+	MaxMsgNums           int32
+	QueueId              int32
+	SuspendTimeoutMillis int64
 }
 
 func (r PullMessageRequestHeader) checkFields() {

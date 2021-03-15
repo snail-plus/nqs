@@ -41,6 +41,10 @@ func (r *Channel) WriteCommand(command *protocol.Command) error {
 		}
 	}()
 
+	if command == nil {
+		return nil
+	}
+
 	r.WriteChan <- command
 	return nil
 }
