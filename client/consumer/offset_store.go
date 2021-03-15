@@ -85,7 +85,7 @@ func (r *RemoteBrokerOffsetStore) updateConsumeOffsetToBroker(group string, mq m
 	counter := atomic.AddInt64(&r.counter, 1)
 	r.counter = counter
 
-	if counter%10 == 0 {
+	if counter%100 == 0 {
 		log.Infof("group: %s, off: %d", group, off)
 	}
 

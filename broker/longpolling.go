@@ -97,7 +97,6 @@ func (r *PullRequestHoldService) NotifyMessageArriving(topic string, queueId int
 	key := topic + TopicQueueIdSeparator + fmt.Sprintf("%d", queueId)
 	manyPullRequest, ok := r.pullRequestTable.Load(key)
 	if !ok {
-		log.Infof("没有hold 请求")
 		return
 	}
 
@@ -121,7 +120,7 @@ func (r *PullRequestHoldService) NotifyMessageArriving(topic string, queueId int
 		if newestOffset > pullRequest.PullFromThisOffset {
 			var suspendTimeoutMillis int64 = 0
 			command.ExtFields["SuspendTimeoutMillis"] = suspendTimeoutMillis
-			log.Infof("有新消息 通知 PullProcessor 读取消息, Opaque: %d", command.Opaque)
+			// log.Infof("有新消息 通知 PullProcessor 读取消息, Opaque: %d", command.Opaque)
 			go processor.PMap[code.PullMessage].Processor.ProcessRequest(command, pullRequest.ClientChannel)
 			continue
 		}

@@ -44,7 +44,7 @@ func (p *defaultProducer) SendSync(ctx context.Context, msg *message.Message) (*
 		ProducerGroup: p.group,
 		Topic:         msg.Topic,
 		QueueId:       1,
-		BornTimestamp: time.Now().Unix(),
+		BornTimestamp: time.Now().UnixNano() / 1e6,
 	}
 
 	// 从nameserv 获取地址 选择队列

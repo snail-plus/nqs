@@ -63,7 +63,6 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 
 	switch getMessageResult.Status {
 	case store.Found:
-		log.Infof("读到消息, opaque: %d", request.Opaque)
 		body := s.readGetMessageResult(getMessageResult)
 		response.Body = body
 

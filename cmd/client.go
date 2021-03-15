@@ -48,7 +48,7 @@ func main() {
 
 	pushConsumer.ConsumeMsg = func(ext []*message.MessageExt) {
 		for _, item := range ext {
-			log.Infof("收到消息: %+v", item)
+			log.Infof("延迟: %d ms, 收到消息: %+v", time.Now().UnixNano()/1e6-item.BornTimestamp, item)
 		}
 	}
 
