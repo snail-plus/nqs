@@ -159,7 +159,7 @@ func (r *DefaultMessageStore) GetMessage(group string, topic string, offset int6
 	minOffset := consumeQueue.GetMinOffsetInQueue()
 	maxOffset := consumeQueue.GetMaxOffsetInQueue()
 
-	log.Infof("pull offset: %d, consumeQueue maxOffset: %d", offset, maxOffset)
+	log.Debugf("pull offset: %d, consumeQueue maxOffset: %d", offset, maxOffset)
 	getResult.MinOffset = minOffset
 	getResult.MaxOffset = maxOffset
 

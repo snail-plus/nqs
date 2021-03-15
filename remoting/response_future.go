@@ -25,7 +25,7 @@ func (r *ResponseFuture) WaitResponse() (*protocol.Command, error) {
 		log.Debugf("WaitResponse %+v, address: %s, localAddress: %s", r.ResponseCommand,
 			r.Conn.RemoteAddr().String(), r.Conn.LocalAddr().String())
 		cost := time.Now().Unix() - r.BeginTimestamp
-		if cost > 5 {
+		if cost > 30 {
 			log.Infof("响应过慢, cost: %d", cost)
 		}
 		return &r.ResponseCommand, nil
