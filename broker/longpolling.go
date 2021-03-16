@@ -135,7 +135,9 @@ func (r *PullRequestHoldService) NotifyMessageArriving(topic string, queueId int
 			var suspendTimeoutMillis int64 = 0
 			command.ExtFields["SuspendTimeoutMillis"] = suspendTimeoutMillis
 			log.Debugf("SuspendPullRequest 超时 PullProcessor 读取消息, Opaque: %d", command.Opaque)
-			go processor.PMap[code.PullMessage].Processor.ProcessRequest(command, pullRequest.ClientChannel)
+			r.pool.Submit(func() {
+				processor.PMap[code.PullMessage].Processor.ProcessRequest(command, pullRequest.ClientChannel)
+			})
 			continue
 		}
 

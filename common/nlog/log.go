@@ -15,7 +15,7 @@ import (
 type LogFormatter struct{}
 
 func (f *LogFormatter) Format(entry *log.Entry) ([]byte, error) {
-	timestamp := time.Now().Local().Format("01-02-15:04:05.000")
+	timestamp := time.Now().Local().Format("01-02 15:04:05.000")
 
 	var file string
 	var len int
@@ -55,4 +55,3 @@ func init() {
 	log.Info("init log")
 	log.Debug("debug log")
 }
-

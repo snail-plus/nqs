@@ -9,6 +9,7 @@ import (
 	"nqs/client/producer"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
+	"nqs/util"
 	"time"
 )
 
@@ -23,13 +24,14 @@ func main() {
 			return
 		}
 
-		msg := &message.Message{
-			Topic: "testTopic",
-			Body:  []byte("abcd"),
-			Flag:  0,
-		}
-
 		for i := 0; i < 10; i++ {
+			randomString := util.RandomString(i + 3)
+			msg := &message.Message{
+				Topic: "testTopic",
+				Body:  []byte(randomString),
+				Flag:  0,
+			}
+
 			ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 			result, err2 := defaultProducer.SendSync(ctx, msg)
 			if err2 != nil {
