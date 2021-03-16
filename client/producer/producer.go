@@ -66,11 +66,12 @@ func (p *defaultProducer) SendSync(ctx context.Context, msg *message.Message) (*
 func (p *defaultProducer) SendAsync(ctx context.Context, msg *message.Message, h func(context.Context, *inner.SendResult, error)) error {
 	request := protocol.CreatesRequestCommand()
 	request.Code = code.SendMessage
+	request.Body = msg.Body
 	request.CustomHeader = message.SendMessageRequestHeader{
 		ProducerGroup: p.group,
 		Topic:         msg.Topic,
 		QueueId:       1,
-		BornTimestamp: time.Now().Unix(),
+		BornTimestamp: time.Now().UnixNano() / 1e6,
 	}
 
 	// 从nameserv 获取地址 选择队列
