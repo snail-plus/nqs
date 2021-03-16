@@ -35,9 +35,7 @@ func (r *ManyPullRequest) cloneListAndClear() *list.List {
 		return tmpPullRequestList
 	}
 
-	for item := r.pullRequestList.Front(); item != nil; item = item.Next() {
-		tmpPullRequestList.PushBack(item.Value)
-	}
+	tmpPullRequestList.PushBackList(r.pullRequestList)
 
 	r.pullRequestList.Init()
 
