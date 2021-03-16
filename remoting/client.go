@@ -24,13 +24,14 @@ func CreateClient() *DefaultClient {
 }
 
 func (r *DefaultClient) getOrCreateChannel(ctx context.Context, addr string) (*ch.Channel, error) {
-	r.lock.Lock()
-	defer r.lock.Unlock()
 
 	load, ok := r.ConnectionTable.Load(addr)
 	if ok && !load.(*ch.Channel).Closed {
 		return load.(*ch.Channel), nil
 	}
+
+	r.lock.Lock()
+	defer r.lock.Unlock()
 
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", addr)

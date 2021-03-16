@@ -73,8 +73,8 @@ func (r *CommitLog) Shutdown() {
 func (r *CommitLog) PutMessage(inner *MessageExtBrokerInner) *PutMessageResult {
 
 	now := time.Now()
-	messageExt := inner.MessageExt
-	messageExt.StoreTimestamp = now.Unix()
+
+	inner.StoreTimestamp = now.UnixNano() / 1e6
 
 	r.putMessageLock.Lock()
 	defer r.putMessageLock.UnLock()

@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"fmt"
+	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
 	"nqs/client"
 	"nqs/client/inner"
@@ -163,7 +164,7 @@ func NewPushConsumer(group, topic string) (*PushConsumer, error) {
 	}
 
 	mq := message.MessageQueue{Topic: topic, QueueId: 1}
-	pq := ProcessQueue{MsgCh: make(chan []*message.MessageExt, 100)}
+	pq := ProcessQueue{MsgCh: make(chan []*message.MessageExt, 1000)}
 
 	dc.prCh <- PullRequest{
 		ConsumerGroup: group,
@@ -221,7 +222,9 @@ func (pc *PushConsumer) pullMessage(request *PullRequest) {
 				pq := request.Pq
 				exts := <-pq.MsgCh
 				if pc.ConsumeMsg != nil {
-					pc.ConsumeMsg(exts)
+					ants.Submit(func() {
+						pc.ConsumeMsg(exts)
+					})
 				}
 			}
 		}

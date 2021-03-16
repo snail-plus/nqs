@@ -11,6 +11,7 @@ import (
 	"nqs/common/message"
 	_ "nqs/common/nlog"
 	"nqs/util"
+	"sync/atomic"
 	"time"
 )
 
@@ -25,8 +26,8 @@ func main() {
 			return
 		}
 
-		for i := 0; i < 10; i++ {
-			randomString := util.RandomString(i + 3)
+		for i := 0; i < 100; i++ {
+			randomString := util.RandomString(8)
 			msg := &message.Message{
 				Topic: "testTopic",
 				Body:  []byte(randomString),
@@ -39,7 +40,7 @@ func main() {
 					return
 				}
 
-				log.Infof("send result: %+v", result)
+				// log.Infof("send result: %+v", result)
 			})
 			// time.Sleep(1 * time.Second)
 		}
@@ -50,10 +51,15 @@ func main() {
 		panic(err)
 	}
 
+	var counter int32 = 0
 	pushConsumer.ConsumeMsg = func(ext []*message.MessageExt) {
 		for _, item := range ext {
+			value := atomic.AddInt32(&counter, 1)
 			delay := time.Now().UnixNano()/1e6 - item.BornTimestamp
-			log.Infof("延迟: %d ms, 收到消息: %+v", delay, item)
+			//delay := item.StoreTimestamp - item.BornTimestamp
+			if delay > 1 && value%10 == 0 {
+				log.Infof("延迟: %d ms, 收到消息: %+v", delay, item)
+			}
 		}
 	}
 
