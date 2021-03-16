@@ -35,11 +35,11 @@ func NewCommitLog(store MessageStore) CommitLog {
 	c.store = store
 	c.mappedFileQueue = NewMappedFileQueue(BasePath+"/commitlog", commitLogFileSize)
 	c.appendMessageCallback = &DefaultAppendMessageCallback{
-		msgIdMemory:        bytes.Buffer{},
-		msgStoreItemMemory: bytes.Buffer{},
+		msgIdMemory:        &bytes.Buffer{},
+		msgStoreItemMemory: &bytes.Buffer{},
 		maxMessageSize:     0,
-		keyBuilder:         strings.Builder{},
-		msgIdBuilder:       strings.Builder{},
+		keyBuilder:         &strings.Builder{},
+		msgIdBuilder:       &strings.Builder{},
 	}
 
 	service := &FlushRealTimeService{commitLog: c, stopChan: make(chan struct{})}
@@ -187,14 +187,16 @@ func (r *CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool
 	var bornTimeStamp int64
 	binary.Read(byteBuff, binary.BigEndian, &bornTimeStamp)
 
-	bornHostAddress := make([]byte, 8)
-	byteBuff.Read(bornHostAddress)
+	/*bornHostAddress := make([]byte, 8)
+	byteBuff.Read(bornHostAddress)*/
+	byteBuff.Next(8)
 
 	var storeTimestamp int64
 	binary.Read(byteBuff, binary.BigEndian, &storeTimestamp)
 
-	storeHostAddress := make([]byte, 8)
-	byteBuff.Read(storeHostAddress)
+	/*storeHostAddress := make([]byte, 8)
+	byteBuff.Read(storeHostAddress)*/
+	byteBuff.Next(8)
 
 	var reconsumeTimes int32
 	binary.Read(byteBuff, binary.BigEndian, &reconsumeTimes)
@@ -206,24 +208,27 @@ func (r *CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool
 	binary.Read(byteBuff, binary.BigEndian, &bodyLen)
 
 	if bodyLen > 0 {
-		var msgBody = make([]byte, bodyLen)
-		readLength, err := byteBuff.Read(msgBody)
-		if err != nil {
-			log.Errorf("read body error : %s", err.Error())
-			return &DispatchRequest{
-				msgSize: 0,
-				success: false,
+		if readBody {
+			var msgBody = make([]byte, bodyLen)
+			readLength, err := byteBuff.Read(msgBody)
+			if err != nil {
+				log.Errorf("read body error : %s", err.Error())
+				return &DispatchRequest{
+					msgSize: 0,
+					success: false,
+				}
 			}
-		}
 
-		if int(bodyLen) != readLength {
-			log.Errorf("msg body length: %d, read length: %d", bodyLen, readLength)
-			return &DispatchRequest{
-				msgSize: 0,
-				success: false,
+			if int(bodyLen) != readLength {
+				log.Errorf("msg body length: %d, read length: %d", bodyLen, readLength)
+				return &DispatchRequest{
+					msgSize: 0,
+					success: false,
+				}
 			}
+		} else {
+			byteBuff.Next(int(bodyLen))
 		}
-
 	}
 
 	topicLen, _ := byteBuff.ReadByte()
@@ -239,7 +244,7 @@ func (r *CommitLog) CheckMessage(byteBuff *bytes.Buffer, checkCrc, readBody bool
 	}
 
 	readLength := calMsgLength(int(bodyLen), int(topicLen), int(propertiesLength))
-	if int(totalSize) != readLength {
+	if totalSize != readLength {
 		log.Errorf("topic: %s, 头部记录 totalSize: %d, 实际消息大小 readLength: %d, bodyLen: %d, topicLen: %d ,propertiesLength: %d",
 			string(topic), totalSize, readLength, bodyLen, topicLen, propertiesLength)
 		return &DispatchRequest{
@@ -347,12 +352,12 @@ func (r *CommitLog) recoverNormally(maxPhyOffsetOfConsumeQueue int64) {
 }
 
 type DefaultAppendMessageCallback struct {
-	msgIdMemory bytes.Buffer
+	msgIdMemory *bytes.Buffer
 
-	msgStoreItemMemory bytes.Buffer
+	msgStoreItemMemory *bytes.Buffer
 	maxMessageSize     int32
-	keyBuilder         strings.Builder
-	msgIdBuilder       strings.Builder
+	keyBuilder         *strings.Builder
+	msgIdBuilder       *strings.Builder
 	msgCount           int64
 }
 
@@ -392,7 +397,7 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 
 	msgLength := calMsgLength(bodyLength, topicLength, propertiesLength)
 
-	if int32(msgLength)+EndFileMinBlankLength > maxBlank {
+	if msgLength+EndFileMinBlankLength > maxBlank {
 		blankBuffer := bytes.NewBuffer([]byte{})
 		binary.Write(blankBuffer, binary.BigEndian, maxBlank)
 		binary.Write(blankBuffer, binary.BigEndian, int32(BlankMagicCode))
@@ -405,57 +410,85 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	}
 
 	// 1 totalSize 4
-	msgStoreItemMemory.Write(util.Int32ToBytes(msgLength))
+	//msgStoreItemMemory.Write(util.Int32ToBytes(msgLength))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, msgLength)
 
 	// 2 magicCode 4
-	msgStoreItemMemory.Write(util.Int32ToBytes(MessageMagicCode))
+	//msgStoreItemMemory.Write(util.Int32ToBytes(MessageMagicCode))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, int32(MessageMagicCode))
+
 	// 3 bodyCrc 4
-	msgStoreItemMemory.Write(util.Int32ToBytes(0))
+	//msgStoreItemMemory.Write(util.Int32ToBytes(0))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, int32(0))
+
 	// 4 queueId 4
-	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.QueueId)))
+	//msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.QueueId)))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, ext.QueueId)
+
 	// 5 flag 4
-	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.Flag)))
+	//msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.Flag)))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, ext.Flag)
+
 	// 6 queueOffset 8
-	msgStoreItemMemory.Write(util.Int64ToBytes(queueOffset))
+	//msgStoreItemMemory.Write(util.Int64ToBytes(queueOffset))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, queueOffset)
+
 	// 7 physicalOffset 8
-	msgStoreItemMemory.Write(util.Int64ToBytes(fileFromOffset + int64(currentOffset)))
+	//msgStoreItemMemory.Write(util.Int64ToBytes(fileFromOffset + int64(currentOffset)))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, fileFromOffset+int64(currentOffset))
+
 	// 8 sysFlag 4
-	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.SysFlag)))
+	//msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.SysFlag)))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, ext.SysFlag)
+
 	// 9 bornTimestamp 8
-	msgStoreItemMemory.Write(util.Int64ToBytes(ext.BornTimestamp))
+	//msgStoreItemMemory.Write(util.Int64ToBytes(ext.BornTimestamp))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, ext.BornTimestamp)
+
 	// 10 bornHost 8
 	msgStoreItemMemory.Write(util.AddressToByte(ext.BornHost))
+
 	// 11 storeTimestamp 8
-	msgStoreItemMemory.Write(util.Int64ToBytes(ext.StoreTimestamp))
+	//msgStoreItemMemory.Write(util.Int64ToBytes(ext.StoreTimestamp))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, ext.StoreTimestamp)
+
 	// 12 storeHostAddress 8
 	storeHostByte := util.AddressToByte(ext.StoreHost)
 	msgStoreItemMemory.Write(storeHostByte)
-	// 13 reconsumeTimes
 
-	msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.ReconsumeTimes)))
+	// 13 reconsumeTimes
+	//msgStoreItemMemory.Write(util.Int32ToBytes(int(ext.ReconsumeTimes)))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, ext.ReconsumeTimes)
+
 	// 14 Prepared transaction offset
-	msgStoreItemMemory.Write(util.Int64ToBytes(ext.PreparedTransactionOffset))
+	//msgStoreItemMemory.Write(util.Int64ToBytes(ext.PreparedTransactionOffset))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, ext.PreparedTransactionOffset)
+
 	// 15 body length 4
-	msgStoreItemMemory.Write(util.Int32ToBytes(bodyLength))
+	//msgStoreItemMemory.Write(util.Int32ToBytes(bodyLength))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, int32(bodyLength))
 	if bodyLength > 0 {
 		msgStoreItemMemory.Write(ext.Body)
 	}
+
 	// 16 topic
-	msgStoreItemMemory.Write(util.Int8ToBytes(topicLength))
+	//msgStoreItemMemory.Write(util.Int8ToBytes(topicLength))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, int8(topicLength))
 	msgStoreItemMemory.Write(topicData)
 	// 17 properties
-	msgStoreItemMemory.Write(util.Int16ToBytes(propertiesLength))
+	//msgStoreItemMemory.Write(util.Int16ToBytes(propertiesLength))
+	binary.Write(msgStoreItemMemory, binary.BigEndian, int16(propertiesLength))
 	if propertiesLength > 0 {
 		msgStoreItemMemory.Write([]byte(propertiesData))
 	}
 
 	copyLength := copy(fileMap, msgStoreItemMemory.Bytes())
-	if copyLength != msgLength {
+	if int32(copyLength) != msgLength {
 		log.Warnf("topic: %s, copyLength != msgLength", string(topicData))
 	}
 
 	appendResult := &AppendMessageResult{
-		WroteBytes:   int32(msgLength),
+		WroteBytes:   msgLength,
 		WroteOffset:  wroteOffset,
 		Status:       AppendOk,
 		LogicsOffset: queueOffset,
@@ -472,11 +505,11 @@ func (r *DefaultAppendMessageCallback) DoAppend(fileMap mmap.MMap, currentOffset
 	return appendResult
 }
 
-func calMsgLength(bodyLength, topicLength, propertiesLength int) int {
-	bornHostLength := 8
-	storeHostAddressLength := 8
+func calMsgLength(bodyLength, topicLength, propertiesLength int) int32 {
+	// bornHostLength := 8
+	// storeHostAddressLength := 8
 
-	return 4 /*totalSize*/ +
+	msgLength := 4 /*totalSize*/ +
 		4 /*magicCode*/ +
 		4 /**bodyCrc */ +
 		4 /*queueId*/ +
@@ -485,12 +518,13 @@ func calMsgLength(bodyLength, topicLength, propertiesLength int) int {
 		8 /*PHYSICALOFFSET*/ +
 		4 /*SYSFLAG*/ +
 		8 /*BORNTIMESTAMP*/ +
-		bornHostLength /*BORNHOST*/ +
+		8 /*BORNHOST*/ +
 		8 /*STORETIMESTAMP*/ +
-		storeHostAddressLength /*STOREHOSTADDRESS*/ +
+		8 /*STOREHOSTADDRESS*/ +
 		4 /*RECONSUMETIMES*/ +
 		8 /*Prepared Transaction Offset*/ +
 		4 + bodyLength /*BODY*/ +
 		1 + topicLength /*TOPIC*/ +
 		2 + propertiesLength //propertiesLength
+	return int32(msgLength)
 }

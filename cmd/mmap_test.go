@@ -204,6 +204,12 @@ func (r BN) a() {
 }
 
 func TestABB(t *testing.T) {
+	aa := bytes.NewBuffer([]byte{})
+	var dat int32 = 34
+	err3 := binary.Write(aa, binary.BigEndian, dat)
+	if err3 != nil {
+		panic(err3)
+	}
 
 	x := map[string]map[int32]int64{}
 	x["a"] = map[int32]int64{1: 34}
