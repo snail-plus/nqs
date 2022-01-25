@@ -10,7 +10,6 @@ import (
 	"nqs/client/producer"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
-	"nqs/util"
 	"sync/atomic"
 	"time"
 )
@@ -26,15 +25,16 @@ func main() {
 			return
 		}
 
+		ctx := context.Background()
 		for i := 0; i < 20000; i++ {
-			randomString := util.RandomString(100)
+			// randomString := util.RandomString(100)
+			randomString := "abcdeftgy"
 			msg := &message.Message{
 				Topic: "testTopic",
 				Body:  []byte(randomString),
 				Flag:  0,
 			}
 
-			ctx, _ := context.WithTimeout(context.Background(), 3*time.Second)
 			defaultProducer.SendAsync(ctx, msg, func(ctx context.Context, result *inner.SendResult, err error) {
 				if err != nil {
 					return

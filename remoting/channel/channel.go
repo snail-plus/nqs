@@ -6,6 +6,7 @@ import (
 	"io"
 	"net"
 	"nqs/remoting/protocol"
+	"nqs/util"
 	"time"
 )
 
@@ -55,6 +56,7 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 		return nil
 	}
 
+	startTime := util.CurrentTimeMillis()
 	encode, err := protocol.Encode(command)
 	if err != nil {
 		log.Errorf("Encode error: %s", err.Error())
@@ -63,6 +65,11 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 
 	r.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	_, err2 := r.Conn.Write(encode)
+	delay := util.CurrentTimeMillis() - startTime
+
+	if delay > 10 {
+		log.Infof("write to server cost: %d ms", delay)
+	}
 	if err2 != nil {
 		log.Errorf("Opaque: %d, write error: %s", command.Opaque, err2.Error())
 		return err2

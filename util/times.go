@@ -11,3 +11,7 @@ func GetUnixTime() int64 {
 func TimeCost(start time.Time) time.Duration {
 	return time.Since(start)
 }
+
+func CurrentTimeMillis() int64 {
+	return time.Now().UnixNano() / 1e6
+}
