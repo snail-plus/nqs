@@ -14,6 +14,7 @@ type MessageExtBrokerInner struct {
 	message.MessageExt
 	propertiesString string
 	tagsCode         int64
+	ReceiveTimestamp int64
 }
 
 func (ext *MessageExtBrokerInner) GetBody() []byte {

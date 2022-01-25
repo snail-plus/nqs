@@ -26,8 +26,8 @@ func main() {
 			return
 		}
 
-		for i := 0; i < 100; i++ {
-			randomString := util.RandomString(8)
+		for i := 0; i < 20000; i++ {
+			randomString := util.RandomString(100)
 			msg := &message.Message{
 				Topic: "testTopic",
 				Body:  []byte(randomString),
@@ -55,10 +55,11 @@ func main() {
 	pushConsumer.ConsumeMsg = func(ext []*message.MessageExt) {
 		for _, item := range ext {
 			value := atomic.AddInt32(&counter, 1)
-			delay := time.Now().UnixNano()/1e6 - item.BornTimestamp
+			delay1 := time.Now().UnixNano()/1e6 - item.BornTimestamp
+			delay2 := item.StoreTimestamp - item.BornTimestamp
 			//delay := item.StoreTimestamp - item.BornTimestamp
-			if delay > 1 && value%10 == 0 {
-				log.Infof("延迟: %d ms, 收到消息: %+v", delay, item)
+			if (delay1 > 1 || delay2 > 1) && value%100 == 0 {
+				log.Infof("延迟1: %d ms, 延迟2: %d ms, 收到消息: %+v", delay1, delay2, item)
 			}
 		}
 	}

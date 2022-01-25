@@ -25,6 +25,20 @@ type ManyPullRequest struct {
 	pullRequestList *list.List // []*PullRequest
 }
 
+func (r *ManyPullRequest) addPullRequest(pullRequest interface{}) {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+
+	switch pullRequest.(type) {
+	case *longpolling.PullRequest:
+		r.pullRequestList.PushBack(pullRequest)
+	case *list.List:
+		r.pullRequestList.PushBackList(pullRequest.(*list.List))
+	default:
+		return
+	}
+}
+
 func (r *ManyPullRequest) cloneListAndClear() *list.List {
 	r.lock.Lock()
 	defer r.lock.Unlock()
@@ -91,18 +105,19 @@ func (r *PullRequestHoldService) SuspendPullRequest(topic string, queueId int32,
 
 	actual, _ := r.pullRequestTable.LoadOrStore(key, manyPullRequest)
 	real := actual.(*ManyPullRequest)
-	real.pullRequestList.PushBack(pullRequest)
+	real.addPullRequest(pullRequest)
 }
 
 func (r *PullRequestHoldService) NotifyMessageArriving(topic string, queueId int, maxOffset int64) {
 
 	key := topic + TopicQueueIdSeparator + fmt.Sprintf("%d", queueId)
-	manyPullRequest, ok := r.pullRequestTable.Load(key)
+	value, ok := r.pullRequestTable.Load(key)
 	if !ok {
 		return
 	}
 
-	pullRequestList := manyPullRequest.(*ManyPullRequest).cloneListAndClear()
+	manyPullRequest := value.(*ManyPullRequest)
+	pullRequestList := manyPullRequest.cloneListAndClear()
 	if pullRequestList.Len() == 0 {
 		return
 	}
@@ -144,5 +159,5 @@ func (r *PullRequestHoldService) NotifyMessageArriving(topic string, queueId int
 		replayList.PushBack(pullRequest)
 	}
 
-	manyPullRequest.(*ManyPullRequest).pullRequestList.PushBackList(replayList)
+	manyPullRequest.addPullRequest(replayList)
 }

@@ -3,6 +3,7 @@ package broker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"github.com/panjf2000/ants/v2"
 	log "github.com/sirupsen/logrus"
 	"net"
@@ -11,6 +12,8 @@ import (
 	"nqs/remoting"
 	ch "nqs/remoting/channel"
 	"nqs/remoting/protocol"
+	"runtime"
+	"strings"
 	"sync"
 	"time"
 )
@@ -103,6 +106,15 @@ func (r *DefaultServer) Start(b *BrokerController) {
 		for {
 			conn, err := listen.Accept()
 			if err != nil {
+				if nerr, ok := err.(net.Error); ok && nerr.Temporary() {
+					log.Warnf("temporary Accept() failure - %v", err)
+					runtime.Gosched()
+					continue
+				}
+				// theres no direct way to detect this error because it is not exposed
+				if !strings.Contains(err.Error(), "use of closed network connection") {
+					log.Error(fmt.Errorf("listener.Accept() error - %s", err))
+				}
 				break
 			}
 

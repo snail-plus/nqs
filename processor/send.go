@@ -40,6 +40,7 @@ func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	inner.Body = request.Body
 	inner.BornHost = channel.Conn.RemoteAddr().String()
 	inner.StoreHost = channel.Conn.LocalAddr().String()
+	inner.ReceiveTimestamp = time.Now().UnixNano() / 1e6
 
 	putResult := s.Store.PutMessages(inner)
 	response := request.CreateResponseCommand()

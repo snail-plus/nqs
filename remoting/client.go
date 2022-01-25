@@ -40,6 +40,10 @@ func (r *DefaultClient) getOrCreateChannel(ctx context.Context, addr string) (*c
 		return nil, err
 	}
 
+	tcpConn, ok := conn.(*net.TCPConn)
+	if ok {
+		tcpConn.SetNoDelay(true)
+	}
 	log.Infof("创建新连接, remoteAddress: %s", addr)
 
 	newChannel := r.AddChannel(addr, conn)

@@ -3,6 +3,7 @@ package channel
 import (
 	"errors"
 	log "github.com/sirupsen/logrus"
+	"io"
 	"net"
 	"nqs/remoting/protocol"
 	"time"
@@ -86,17 +87,24 @@ func (r *Channel) IsClosed(err error) bool {
 func ReadFully(len int, conn net.Conn) ([]byte, error) {
 	var b = make([]byte, len, len)
 
-	totalCount := 0
-	for {
-		readLength, err := conn.Read(b)
-
-		if err != nil {
-			return nil, err
-		}
-
-		totalCount += readLength
-		if totalCount >= len {
-			return b, nil
-		}
+	_, err := io.ReadFull(conn, b)
+	if err != nil {
+		return nil, err
 	}
+
+	return b, nil
+	/*
+		totalCount := 0
+		for {
+			readLength, err := conn.Read(b)
+
+			if err != nil {
+				return nil, err
+			}
+
+			totalCount += readLength
+			if totalCount >= len {
+				return b, nil
+			}
+		}*/
 }

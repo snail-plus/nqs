@@ -2,7 +2,6 @@ package protocol
 
 import (
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"nqs/util"
 )
 
@@ -49,7 +48,7 @@ func Encode(c *Command) ([]byte, error) {
 		return nil, err
 	}
 
-	log.Debugf("head json: %s", string(headerBytes))
+	// log.Debugf("head json: %s", string(headerBytes))
 
 	// 总长度 = 4 字节头部 + head 4 字节 + 头部数据 + body
 	headLength := len(headerBytes)
@@ -64,10 +63,10 @@ func Encode(c *Command) ([]byte, error) {
 
 	// 写入总长度
 	copy(b[0:4], util.Int32ToBytes(totalLength))
-	log.Debugf("totalLength: %d", totalLength)
+	// log.Debugf("totalLength: %d", totalLength)
 
 	// 写入head 长度
-	log.Debugf("headLength: %d", headLength)
+	// log.Debugf("headLength: %d", headLength)
 	copy(b[4:8], util.Int32ToBytes(headLength))
 
 	// 写入头部数据
@@ -76,7 +75,7 @@ func Encode(c *Command) ([]byte, error) {
 	// 写入BODY 数据
 	if c.Body != nil {
 		copy(b[8+headLength:], c.Body)
-		log.Debugf("bodyLength: %d", len(c.Body))
+		// log.Debugf("bodyLength: %d", len(c.Body))
 	}
 
 	return b, nil
@@ -115,7 +114,7 @@ func makeCustomHeaderToNet(c *Command) {
 	}
 
 	toMap := util.StructToMap(c.CustomHeader)
-	log.Debugf("toMap: %+v", toMap)
+	// log.Debugf("toMap: %+v", toMap)
 	for k, v := range toMap {
 		fields[k] = v
 	}

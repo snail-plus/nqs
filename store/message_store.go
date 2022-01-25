@@ -358,7 +358,7 @@ func (r *RePutMessageService) Start() {
 	r.DaemonTask.Run = func() {
 		log.Infof("start rePut service, 索引队列存储的commitLog最后一个消息的物理offset, RePutFromOffset: %d", r.RePutFromOffset)
 		for !r.IsStopped() {
-			time.Sleep(300 * time.Microsecond)
+			time.Sleep(100 * time.Microsecond)
 			r.doRePut()
 		}
 	}
