@@ -18,9 +18,11 @@ type DefaultClient struct {
 func CreateClient() *DefaultClient {
 	remoting := Remoting{ResponseTable: sync.Map{}, ConnectionTable: sync.Map{}}
 	remoting.Start()
-	return &DefaultClient{
+
+	client := DefaultClient{
 		Remoting: remoting,
 	}
+	return &client
 }
 
 func (r *DefaultClient) getOrCreateChannel(ctx context.Context, addr string) (*ch.Channel, error) {
@@ -40,14 +42,11 @@ func (r *DefaultClient) getOrCreateChannel(ctx context.Context, addr string) (*c
 		return nil, err
 	}
 
-	tcpConn, ok := conn.(*net.TCPConn)
-	if ok {
-		tcpConn.SetNoDelay(true)
-	}
 	log.Infof("创建新连接, remoteAddress: %s", addr)
 
 	newChannel := r.AddChannel(addr, conn)
 	go r.ReadMessage(newChannel)
+	go r.HandleWrite(newChannel)
 	return newChannel, nil
 }
 
@@ -57,7 +56,7 @@ func (r DefaultClient) InvokeOneWay(ctx context.Context, addr string, command *p
 		return err
 	}
 	command.MarkOnewayRPC()
-	err = channel.WriteToConn(command)
+	err = channel.WriteCommand(command)
 	return err
 }
 
@@ -83,9 +82,10 @@ func (r *DefaultClient) InvokeSync(ctx context.Context, addr string, command *pr
 
 	r.ResponseTable.Store(command.Opaque, future)
 
-	err = channel.WriteToConn(command)
+	err = channel.WriteCommand(command)
 
 	if err != nil {
+		log.Error("写入失败: %s", err.Error())
 		r.RemoveChannel(channel)
 		return nil, err
 	}
@@ -111,14 +111,29 @@ func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *p
 
 	r.ResponseTable.Store(command.Opaque, future)
 
-	err = channel.WriteToConn(command)
+	err = channel.WriteCommand(command)
 	if err != nil {
-		return err
+		invokeCallback(command, err)
 	}
 
-	return nil
+	return err
 }
 
+func (r *DefaultClient) HandleWrite(c *ch.Channel) {
+	for !c.Closed {
+		select {
+		case response, isOpen := <-c.WriteChan:
+			if !isOpen {
+				break
+			}
+
+			err := c.WriteToConn(response)
+			if err != nil {
+				continue
+			}
+		}
+	}
+}
 func (r *DefaultClient) Shutdown() {
 	r.lock.Lock()
 	defer r.lock.Unlock()

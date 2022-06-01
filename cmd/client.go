@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	log "github.com/sirupsen/logrus"
 	"math"
 	_ "net/http/pprof"
@@ -10,6 +11,7 @@ import (
 	"nqs/client/producer"
 	"nqs/common/message"
 	_ "nqs/common/nlog"
+	"nqs/util"
 	"sync/atomic"
 	"time"
 )
@@ -26,9 +28,10 @@ func main() {
 		}
 
 		ctx := context.Background()
-		for i := 0; i < 20000; i++ {
+		startTime := util.CurrentTimeMillis()
+		for i := 0; i < 12000; i++ {
 			// randomString := util.RandomString(100)
-			randomString := "abcdeftgy"
+			randomString := "abcdeftgy" + fmt.Sprintf("%d", i)
 			msg := &message.Message{
 				Topic: "testTopic",
 				Body:  []byte(randomString),
@@ -44,6 +47,8 @@ func main() {
 			})
 			// time.Sleep(1 * time.Second)
 		}
+
+		log.Infof("发送耗时: %d ms", util.CurrentTimeMillis()-startTime)
 	})
 
 	pushConsumer, err := consumer.NewPushConsumer("test", "testTopic")

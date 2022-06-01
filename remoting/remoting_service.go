@@ -35,13 +35,12 @@ type Remoting struct {
 func (r *Remoting) AddChannel(addr string, conn net.Conn) *ch.Channel {
 	tcpConn, ok := conn.(*net.TCPConn)
 	if ok {
-		tcpConn.SetReadBuffer(1024)
-		tcpConn.SetWriteBuffer(1024)
+		tcpConn.SetReadBuffer(2048)
+		tcpConn.SetWriteBuffer(2048)
 	}
-	channel := &ch.Channel{
-		Conn:      conn,
-		WriteChan: make(chan *protocol.Command, 1000),
-	}
+
+	writeChan := make(chan *protocol.Command, 1000)
+	channel := ch.NewChannel(conn, writeChan)
 	r.ConnectionTable.Store(addr, channel)
 	return channel
 }
@@ -140,7 +139,7 @@ func (r *Remoting) ReadMessage(channel *ch.Channel) {
 
 	for !channel.Closed {
 
-		head, err := ch.ReadFully(ch.HeadLength, conn)
+		head, err := channel.ReadFully(ch.HeadLength)
 		if err != nil {
 			log.Errorf("读取头部错误, %+v", err)
 			break
@@ -153,7 +152,7 @@ func (r *Remoting) ReadMessage(channel *ch.Channel) {
 		}
 
 		startTime := time.Now().UnixNano() / 1e6
-		remainData, err := ch.ReadFully(headLength, conn)
+		remainData, err := channel.ReadFully(headLength)
 		if err != nil {
 			log.Errorf("读取头部错误, %+v", err)
 			break

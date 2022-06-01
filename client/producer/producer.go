@@ -7,6 +7,7 @@ import (
 	"nqs/code"
 	"nqs/common/message"
 	"nqs/remoting/protocol"
+	"nqs/util"
 	"time"
 )
 
@@ -44,7 +45,7 @@ func (p *defaultProducer) SendSync(ctx context.Context, msg *message.Message) (*
 		ProducerGroup: p.group,
 		Topic:         msg.Topic,
 		QueueId:       1,
-		BornTimestamp: time.Now().UnixNano() / 1e6,
+		BornTimestamp: util.CurrentTimeMillis(),
 	}
 
 	// 从nameserv 获取地址 选择队列
@@ -71,7 +72,7 @@ func (p *defaultProducer) SendAsync(ctx context.Context, msg *message.Message, h
 		ProducerGroup: p.group,
 		Topic:         msg.Topic,
 		QueueId:       1,
-		BornTimestamp: time.Now().UnixNano() / 1e6,
+		BornTimestamp: util.CurrentTimeMillis(),
 	}
 
 	// 从nameserv 获取地址 选择队列

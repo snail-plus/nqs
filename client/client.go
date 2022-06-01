@@ -184,8 +184,8 @@ func (r *RMQClient) InvokeSync(ctx context.Context, addr string, command *protoc
 	return r.RemoteClient.InvokeSync(ctx, addr, command)
 }
 
-func (r *RMQClient) InvokeASync(ctx context.Context, addr string, request *protocol.Command, f func(*protocol.Command, error)) error {
-	return r.RemoteClient.InvokeAsync(ctx, addr, request, f)
+func (r *RMQClient) InvokeASync(ctx context.Context, addr string, request *protocol.Command, callback func(*protocol.Command, error)) error {
+	return r.RemoteClient.InvokeAsync(ctx, addr, request, callback)
 }
 
 func (r *RMQClient) ProcessSendResponse(brokerName string, cmd *protocol.Command, resp *inner.SendResult, msgs ...*message.Message) error {

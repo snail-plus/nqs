@@ -1,12 +1,14 @@
 package channel
 
 import (
+	"bufio"
 	"errors"
 	log "github.com/sirupsen/logrus"
 	"io"
 	"net"
 	"nqs/remoting/protocol"
 	"nqs/util"
+	"sync"
 	"time"
 )
 
@@ -14,8 +16,20 @@ const HeadLength = 4
 
 type Channel struct {
 	Conn      net.Conn
+	bw        *bufio.Writer
+	br        *bufio.Reader
 	Closed    bool
 	WriteChan chan *protocol.Command
+	lock      sync.Mutex
+}
+
+func NewChannel(conn net.Conn, ch chan *protocol.Command) *Channel {
+	return &Channel{
+		Conn:      conn,
+		WriteChan: ch,
+		bw:        bufio.NewWriterSize(conn, 1024*4),
+		br:        bufio.NewReaderSize(conn, 1024*4),
+	}
 }
 
 func (r *Channel) IsOk() bool {
@@ -64,15 +78,24 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 	}
 
 	r.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	_, err2 := r.Conn.Write(encode)
+	_, err2 := r.bw.Write(encode)
+
+	if err2 != nil {
+		log.Errorf("Opaque: %d, channel: %s, write error: %s",
+			command.Opaque, r.Conn.LocalAddr().String(), err2.Error())
+		return err2
+	}
+
+	err3 := r.bw.Flush()
+	if err3 != nil {
+		log.Errorf("Opaque: %d, flush error: %s", command.Opaque, err3.Error())
+		return err2
+	}
+
 	delay := util.CurrentTimeMillis() - startTime
 
-	if delay > 10 {
+	if delay > 3 {
 		log.Infof("write to server cost: %d ms", delay)
-	}
-	if err2 != nil {
-		log.Errorf("Opaque: %d, write error: %s", command.Opaque, err2.Error())
-		return err2
 	}
 
 	return nil
@@ -91,15 +114,22 @@ func (r *Channel) IsClosed(err error) bool {
 	return opErr.Err.Error() == "use of closed network connection"
 }
 
-func ReadFully(len int, conn net.Conn) ([]byte, error) {
+func (r *Channel) ReadFully(len int) ([]byte, error) {
 	var b = make([]byte, len, len)
 
-	_, err := io.ReadFull(conn, b)
-	if err != nil {
-		return nil, err
+	totalReadLen := 0
+	for {
+		readLen, err := io.ReadFull(r.br, b[totalReadLen:])
+		if err != nil {
+			return nil, err
+		}
+
+		totalReadLen += readLen
+		if totalReadLen >= len {
+			return b, nil
+		}
 	}
 
-	return b, nil
 	/*
 		totalCount := 0
 		for {

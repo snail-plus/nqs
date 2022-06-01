@@ -40,7 +40,12 @@ func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	inner.Body = request.Body
 	inner.BornHost = channel.Conn.RemoteAddr().String()
 	inner.StoreHost = channel.Conn.LocalAddr().String()
-	inner.ReceiveTimestamp = time.Now().UnixNano() / 1e6
+	inner.ReceiveTimestamp = util.CurrentTimeMillis()
+
+	delay := inner.ReceiveTimestamp - inner.BornTimestamp
+	if delay > 10 {
+		log.Infof("接收耗时过高: %d", delay)
+	}
 
 	putResult := s.Store.PutMessages(inner)
 	response := request.CreateResponseCommand()
