@@ -1,7 +1,10 @@
 package protocol
 
 import (
+	"bytes"
 	"encoding/json"
+	log "github.com/sirupsen/logrus"
+	"nqs/remoting/buffer"
 	"nqs/util"
 )
 
@@ -37,11 +40,26 @@ func (r *JsonCodec) encodeHeader(c *Command) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	return headerBytes, nil
 }
 
-func Encode(c *Command) ([]byte, error) {
+var bufPool = buffer.NewDefaultBufPool()
+
+func EncodeWithFn(c *Command, fn func(b []byte) error) error {
+	buf := bufPool.GetBuffer()
+	defer bufPool.PutBuffer(buf)
+
+	encode, err := Encode(c, buf)
+	if err != nil {
+		return err
+	}
+
+	return fn(encode.Bytes())
+}
+
+func Encode(c *Command, buf *bytes.Buffer) (*bytes.Buffer, error) {
+	startTime := util.CurrentTimeMillis()
+
 	makeCustomHeaderToNet(c)
 	headerBytes, err := jsonSerializer.encodeHeader(c)
 	if err != nil {
@@ -59,26 +77,36 @@ func Encode(c *Command) ([]byte, error) {
 
 	// 此长度不包含4字节头部
 	totalLength := 4 + headLength + bodyLength
-	b := make([]byte, totalLength+4)
+	//b := make([]byte, totalLength+4)
 
 	// 写入总长度
-	copy(b[0:4], util.Int32ToBytes(totalLength))
+	// copy(b[0:4], util.Int32ToBytes(totalLength))
+	buf.Write(util.Int32ToBytes(totalLength))
+
 	// log.Debugf("totalLength: %d", totalLength)
 
 	// 写入head 长度
 	// log.Debugf("headLength: %d", headLength)
-	copy(b[4:8], util.Int32ToBytes(headLength))
+	//copy(b[4:8], util.Int32ToBytes(headLength))
+	buf.Write(util.Int32ToBytes(headLength))
 
 	// 写入头部数据
-	copy(b[8:8+headLength], headerBytes)
+	//copy(b[8:8+headLength], headerBytes)
+	buf.Write(headerBytes)
 
 	// 写入BODY 数据
 	if c.Body != nil {
-		copy(b[8+headLength:], c.Body)
+		//copy(b[8+headLength:], c.Body)
+		buf.Write(c.Body)
 		// log.Debugf("bodyLength: %d", len(c.Body))
 	}
 
-	return b, nil
+	delay := util.CurrentTimeMillis() - startTime
+	if delay > 1 {
+		log.Warnf("Encode cost: %d ms too long", delay)
+	}
+
+	return buf, nil
 }
 
 func Decode(data []byte) (*Command, error) {

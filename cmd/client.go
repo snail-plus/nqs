@@ -29,7 +29,7 @@ func main() {
 
 		ctx := context.Background()
 		startTime := util.CurrentTimeMillis()
-		for i := 0; i < 12000; i++ {
+		for i := 0; i < 150000; i++ {
 			// randomString := util.RandomString(100)
 			randomString := "abcdeftgy" + fmt.Sprintf("%d", i)
 			msg := &message.Message{
@@ -45,6 +45,7 @@ func main() {
 
 				// log.Infof("send result: %+v", result)
 			})
+
 			// time.Sleep(1 * time.Second)
 		}
 
@@ -69,7 +70,7 @@ func main() {
 		}
 	}
 
-	pushConsumer.Start()
+	// pushConsumer.Start()
 	time.Sleep(math.MaxInt64)
 
 }

@@ -68,17 +68,20 @@ func (p *defaultProducer) SendAsync(ctx context.Context, msg *message.Message, h
 	request := protocol.CreatesRequestCommand()
 	request.Code = code.SendMessage
 	request.Body = msg.Body
+	now := util.CurrentTimeMillis()
+
 	request.CustomHeader = message.SendMessageRequestHeader{
 		ProducerGroup: p.group,
 		Topic:         msg.Topic,
 		QueueId:       1,
-		BornTimestamp: util.CurrentTimeMillis(),
+		BornTimestamp: now,
 	}
+	request.ExtFields["sendTime"] = util.CurrentTimeMillis()
 
 	// 从nameserv 获取地址 选择队列
 	addr := p.namesrvs.FindBrokerAddrByName("aaa")
 
-	ctx, _ = context.WithTimeout(ctx, 3*time.Second)
+	ctx, _ = context.WithTimeout(ctx, 1*time.Second)
 	p.client.InvokeASync(ctx, addr, request, func(command *protocol.Command, err error) {
 		if err != nil {
 			h(ctx, nil, err)

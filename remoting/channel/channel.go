@@ -71,34 +71,49 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 	}
 
 	startTime := util.CurrentTimeMillis()
-	encode, err := protocol.Encode(command)
-	if err != nil {
-		log.Errorf("Encode error: %s", err.Error())
-		return err
-	}
+	err := protocol.EncodeWithFn(command, func(data []byte) error {
+		s, ok := command.ExtFields["sendTime"]
+		if ok {
+			switch s.(type) {
+			case int64:
+				delay := util.CurrentTimeMillis() - s.(int64)
+				if delay > 10 && time.Now().UnixMilli()%2 == 0 {
+					log.Infof("写入之前延迟过高 cost: %d ms", delay)
+				}
+			default:
 
-	r.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	_, err2 := r.bw.Write(encode)
+			}
 
-	if err2 != nil {
-		log.Errorf("Opaque: %d, channel: %s, write error: %s",
-			command.Opaque, r.Conn.LocalAddr().String(), err2.Error())
-		return err2
-	}
+		}
 
-	err3 := r.bw.Flush()
-	if err3 != nil {
-		log.Errorf("Opaque: %d, flush error: %s", command.Opaque, err3.Error())
-		return err2
-	}
+		err := r.Conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
+		if err != nil {
+			return err
+		}
+		_, err2 := r.bw.Write(data)
 
-	delay := util.CurrentTimeMillis() - startTime
+		if err2 != nil {
+			log.Errorf("Opaque: %d, channel: %s, write error: %s",
+				command.Opaque, r.Conn.LocalAddr().String(), err2.Error())
+			return err2
+		}
 
-	if delay > 3 {
-		log.Infof("write to server cost: %d ms", delay)
-	}
+		err3 := r.bw.Flush()
+		if err3 != nil {
+			log.Errorf("Opaque: %d, flush error: %s", command.Opaque, err3.Error())
+			return err2
+		}
 
-	return nil
+		delay := util.CurrentTimeMillis() - startTime
+
+		if delay > 1 {
+			log.Infof("write channel cost: %d ms too long", delay)
+		}
+
+		return nil
+	})
+
+	return err
 }
 
 func (r *Channel) IsClosed(err error) bool {

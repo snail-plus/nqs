@@ -16,7 +16,11 @@ type DefaultClient struct {
 }
 
 func CreateClient() *DefaultClient {
-	remoting := Remoting{ResponseTable: sync.Map{}, ConnectionTable: sync.Map{}}
+
+	remoting := Remoting{
+		ResponseTable:   sync.Map{},
+		ConnectionTable: sync.Map{},
+	}
 	remoting.Start()
 
 	client := DefaultClient{
@@ -111,7 +115,7 @@ func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *p
 
 	r.ResponseTable.Store(command.Opaque, future)
 
-	err = channel.WriteCommand(command)
+	err = channel.WriteToConn(command)
 	if err != nil {
 		invokeCallback(command, err)
 	}
@@ -129,6 +133,7 @@ func (r *DefaultClient) HandleWrite(c *ch.Channel) {
 
 			err := c.WriteToConn(response)
 			if err != nil {
+				log.Error("write error: &s", err.Error())
 				continue
 			}
 		}

@@ -43,7 +43,7 @@ func (s *SendMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	inner.ReceiveTimestamp = util.CurrentTimeMillis()
 
 	delay := inner.ReceiveTimestamp - inner.BornTimestamp
-	if delay > 10 {
+	if delay > 10 && inner.ReceiveTimestamp%10 == 0 {
 		log.Infof("接收耗时过高: %d", delay)
 	}
 

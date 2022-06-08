@@ -13,7 +13,6 @@ import (
 	"nqs/remoting/protocol"
 	"nqs/util"
 	"sync"
-	"time"
 )
 
 type Remote interface {
@@ -35,11 +34,13 @@ type Remoting struct {
 func (r *Remoting) AddChannel(addr string, conn net.Conn) *ch.Channel {
 	tcpConn, ok := conn.(*net.TCPConn)
 	if ok {
-		tcpConn.SetReadBuffer(2048)
-		tcpConn.SetWriteBuffer(2048)
+		tcpConn.SetReadBuffer(1024 * 64)
+		tcpConn.SetWriteBuffer(1024 * 64)
+		tcpConn.SetNoDelay(true)
+		tcpConn.SetKeepAlive(true)
 	}
 
-	writeChan := make(chan *protocol.Command, 1000)
+	writeChan := make(chan *protocol.Command, 10000)
 	channel := ch.NewChannel(conn, writeChan)
 	r.ConnectionTable.Store(addr, channel)
 	return channel
@@ -138,6 +139,7 @@ func (r *Remoting) ReadMessage(channel *ch.Channel) {
 	conn := channel.Conn
 
 	for !channel.Closed {
+		startTime := util.CurrentTimeMillis()
 
 		head, err := channel.ReadFully(ch.HeadLength)
 		if err != nil {
@@ -151,24 +153,26 @@ func (r *Remoting) ReadMessage(channel *ch.Channel) {
 			break
 		}
 
-		startTime := time.Now().UnixNano() / 1e6
 		remainData, err := channel.ReadFully(headLength)
 		if err != nil {
 			log.Errorf("读取头部错误, %+v", err)
 			break
 		}
-		// log.Debugf("remainData length: %d", len(remainData))
-		command, err := protocol.Decode(remainData)
-		if err != nil {
-			log.Error("decode 失败, ", err.Error())
-			continue
-		}
 
-		delay := time.Now().UnixNano()/1e6 - startTime
+		delay := util.CurrentTimeMillis() - startTime
 		if delay > 5 {
 			log.Warnf("读取socket 数据延迟过高: %d ms", delay)
 		}
+
+		command, err := protocol.Decode(remainData)
+		if err != nil {
+			log.Error("decode 失败, ", err.Error())
+			return
+		}
+
 		r.processMessageReceived(command, channel)
+
+		// log.Debugf("remainData length: %d", len(remainData))
 
 	}
 
