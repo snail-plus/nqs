@@ -37,6 +37,7 @@ func openFile(filePath string, flags int) (*os.File, error) {
 
 func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 
+	startTime := util.CurrentTimeMillis()
 	log.Infof("prepare init mapped file: %s, fileSize: %d", fileName, fileSize)
 	file, err := openFile(fileName, os.O_RDWR|os.O_CREATE)
 	if err != nil {
@@ -76,7 +77,7 @@ func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 		return nil, err
 	}
 
-	log.Infof("mmap len: %d, cap: %d", len(mmap), cap(mmap))
+	log.Infof("mmap len: %d, cap: %d, cost: %d ms", len(mmap), cap(mmap), util.CurrentTimeMillis()-startTime)
 	return &MappedFile{
 		mmap:               mmap,
 		wrotePosition:      0,
