@@ -1,17 +1,18 @@
 package test
 
 import (
+	"bytes"
+	"fmt"
 	"nqs/util"
 	"testing"
 )
 
 type A interface {
-     a()
+	a()
 }
 
-
 type B struct {
-   Age int64
+	Age int64
 }
 
 func (r B) a() {
@@ -24,6 +25,9 @@ func testa(a interface{}) {
 }
 
 func TestA(t *testing.T) {
-	b := B{Age: 0}
-	testa(b)
+	a := make([]byte, 4)
+	buffer := bytes.NewBuffer(a)
+	fmt.Println(buffer.Bytes())
+	buffer.Reset()
+	fmt.Println(buffer.Bytes())
 }

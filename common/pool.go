@@ -23,6 +23,9 @@ func GetHeader() []byte {
 }
 
 func BackHeader(d []byte) {
+	for i := range d {
+		d[i] = 0
+	}
 	headerPool.Put(d)
 }
 

@@ -77,7 +77,7 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 			switch s.(type) {
 			case int64:
 				delay := util.CurrentTimeMillis() - s.(int64)
-				if delay > 10 && time.Now().UnixMilli()%2 == 0 {
+				if delay > 10 && util.CurrentTimeMillis()%2 == 0 {
 					log.Infof("写入之前延迟过高 cost: %d ms", delay)
 				}
 			default:
@@ -127,6 +127,11 @@ func (r *Channel) IsClosed(err error) bool {
 	}
 
 	return opErr.Err.Error() == "use of closed network connection"
+}
+
+func (r *Channel) ReadHead(buf []byte, len int) ([]byte, error) {
+	_, err := io.ReadFull(r.br, buf)
+	return buf, err
 }
 
 func (r *Channel) ReadFully(len int) ([]byte, error) {
