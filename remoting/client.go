@@ -60,7 +60,7 @@ func (r DefaultClient) InvokeOneWay(ctx context.Context, addr string, command *p
 		return err
 	}
 	command.MarkOnewayRPC()
-	err = channel.WriteCommand(command)
+	err = channel.WriteToConn(command)
 	return err
 }
 
@@ -86,7 +86,7 @@ func (r *DefaultClient) InvokeSync(ctx context.Context, addr string, command *pr
 
 	r.ResponseTable.Store(command.Opaque, future)
 
-	err = channel.WriteCommand(command)
+	err = channel.WriteToConn(command)
 
 	if err != nil {
 		log.Error("写入失败: %s", err.Error())
@@ -115,7 +115,7 @@ func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *p
 
 	r.ResponseTable.Store(command.Opaque, future)
 
-	err = channel.WriteCommand(command)
+	err = channel.WriteToConn(command)
 	if err != nil {
 		invokeCallback(command, err)
 	}

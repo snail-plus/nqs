@@ -65,7 +65,7 @@ func (s *SendMessageProcessor) handlePutMessageResult(putResult *store.PutMessag
 	}
 
 	startTime := time.Now()
-	channel.WriteCommand(response)
+	channel.WriteToConn(response)
 	cost := time.Since(startTime).Seconds()
 	if cost >= 1 {
 		log.Warnf("请求写入耗时过长 %f", cost)

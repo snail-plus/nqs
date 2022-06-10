@@ -71,6 +71,5 @@ func (r *ConsumerManageProcessor) queryConsumerOffset(command *protocol.Command,
 	responseHeader := message.QueryConsumerOffsetResponseHeader{Offset: offset}
 	response := command.CreateResponseCommand()
 	response.CustomHeader = responseHeader
-	channel.WriteCommand(response)
-
+	channel.WriteToConn(response)
 }

@@ -50,7 +50,7 @@ func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 	}
 
 	if stat.Size() == 0 {
-		a := make([]byte, OsPageSize)
+		/*a := make([]byte, OsPageSize)
 		for i := 0; i < int(fileSize); i += OsPageSize {
 			_, err := file.WriteAt(a, int64(i))
 			if err != nil {
@@ -61,7 +61,7 @@ func InitMappedFile(fileName string, fileSize int32) (*MappedFile, error) {
 		err = file.Sync()
 		if err != nil {
 			return nil, err
-		}
+		}*/
 	}
 
 	mmap, err := mmap.MapRegion(file, int(fileSize), mmap.RDWR, 0, 0)

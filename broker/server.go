@@ -57,7 +57,7 @@ func (r *DefaultServer) InvokeOneWay(ctx context.Context, addr string, command *
 
 	channel := load.(*ch.Channel)
 
-	return channel.WriteCommand(command)
+	return channel.WriteToConn(command)
 }
 
 func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *protocol.Command) (*protocol.Command, error) {
@@ -78,7 +78,7 @@ func (r *DefaultServer) InvokeSync(ctx context.Context, addr string, command *pr
 	}
 
 	r.ResponseTable.Store(command.Opaque, future)
-	err := channel.WriteCommand(command)
+	err := channel.WriteToConn(command)
 	if err != nil {
 		return nil, err
 	}

@@ -40,7 +40,7 @@ func (r *Remoting) AddChannel(addr string, conn net.Conn) *ch.Channel {
 		tcpConn.SetKeepAlive(true)
 	}
 
-	writeChan := make(chan *protocol.Command, 10000)
+	writeChan := make(chan *protocol.Command, 15000)
 	channel := ch.NewChannel(conn, writeChan)
 	r.ConnectionTable.Store(addr, channel)
 	return channel
@@ -101,7 +101,7 @@ func (r *Remoting) processMessageReceived(command *protocol.Command, channel *ch
 	pair, ok := processor.PMap[command.Code]
 	if !ok {
 		var errorCommand = &protocol.Command{Code: code.SystemError, Opaque: command.Opaque, Flag: 1}
-		channel.WriteCommand(errorCommand)
+		channel.WriteToConn(errorCommand)
 		log.Errorf("Code: %d 没有找到对应的处理器, Flag: %d", command.Code, command.Flag)
 		return
 	}

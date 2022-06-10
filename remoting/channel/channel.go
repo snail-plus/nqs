@@ -86,6 +86,9 @@ func (r *Channel) WriteToConn(command *protocol.Command) error {
 
 		}
 
+		r.lock.Lock()
+		defer r.lock.Unlock()
+
 		err := r.Conn.SetWriteDeadline(time.Now().Add(2 * time.Second))
 		if err != nil {
 			return err

@@ -32,7 +32,7 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 	if err != nil {
 		response.Code = code.SystemError
 		log.Error("MapToStruct error: " + err.Error())
-		channel.WriteCommand(response)
+		channel.WriteToConn(response)
 		return
 	}
 
@@ -85,7 +85,7 @@ func (s *PullMessageProcessor) ProcessRequest(request *protocol.Command, channel
 		response.Code = int32(store.NoMessageInQueue)
 	}
 
-	channel.WriteCommand(response)
+	channel.WriteToConn(response)
 }
 
 func (s *PullMessageProcessor) readGetMessageResult(getResult *store.GetMessageResult) []byte {

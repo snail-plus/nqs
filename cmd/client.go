@@ -70,7 +70,7 @@ func main() {
 		}
 	}
 
-	pushConsumer.Start()
+	//pushConsumer.Start()
 	time.Sleep(math.MaxInt64)
 
 }
