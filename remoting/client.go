@@ -115,7 +115,7 @@ func (r *DefaultClient) InvokeAsync(ctx context.Context, addr string, command *p
 
 	r.ResponseTable.Store(command.Opaque, future)
 
-	err = channel.WriteToConn(command)
+	err = channel.WriteCommand(command)
 	if err != nil {
 		invokeCallback(command, err)
 	}
