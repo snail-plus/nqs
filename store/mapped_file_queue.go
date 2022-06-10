@@ -51,7 +51,8 @@ func (r *MappedFileQueue) Load() bool {
 
 	for _, onefile := range f {
 		if onefile.Size() != int64(r.mappedFileSize) {
-			log.Warnf("file: %s length not matched message store config value, please check it manually", onefile.Name())
+			log.Warnf("file: %s length: %d not matched message store config value: %d, please check it manually",
+				onefile.Name(), onefile.Size(), r.mappedFileSize)
 			return false
 		}
 
