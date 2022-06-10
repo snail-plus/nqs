@@ -139,7 +139,6 @@ func (r *Remoting) ReadMessage(channel *ch.Channel) {
 	conn := channel.Conn
 
 	for !channel.Closed {
-		startTime := util.CurrentTimeMillis()
 
 		head, err := channel.ReadFully(ch.HeadLength)
 		if err != nil {
@@ -147,6 +146,7 @@ func (r *Remoting) ReadMessage(channel *ch.Channel) {
 			break
 		}
 
+		startTime := util.CurrentTimeMillis()
 		headLength := util.BytesToInt32(head)
 		if headLength <= 0 {
 			log.Infof("数据异常: %d", headLength)
