@@ -41,7 +41,7 @@ type RMQClient struct {
 
 var clientMap sync.Map
 
-func GetOrNewRocketMQClient(namesrvs Namesrvs) *RMQClient {
+func GetOrNewRocketMQClient(group string, namesrvs Namesrvs) *RMQClient {
 	client := &RMQClient{
 		RemoteClient: remoting.CreateClient(),
 		cron:         cron.New(),
@@ -49,7 +49,7 @@ func GetOrNewRocketMQClient(namesrvs Namesrvs) *RMQClient {
 		producerMap:  &sync.Map{},
 		namesrv:      namesrvs,
 	}
-	actual, loaded := clientMap.LoadOrStore(client.ClientID(), client)
+	actual, loaded := clientMap.LoadOrStore(client.ClientID()+"-"+group, client)
 	if !loaded {
 		// TODO RebalanceImmediately 等
 	}
