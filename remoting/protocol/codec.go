@@ -16,7 +16,18 @@ type serializer interface {
 type JsonCodec struct {
 }
 
-var jsonSerializer = &JsonCodec{}
+type MqCodec struct {
+}
+
+var defaultSerializer = &JsonCodec{}
+
+func (r *MqCodec) decodeHeader(data []byte) (*Command, error) {
+	return nil, nil
+}
+
+func (r *MqCodec) encodeHeader(c *Command) ([]byte, error) {
+	return nil, nil
+}
 
 /**
 解码 这里 只是解出来通用头部 其他 不管
@@ -61,7 +72,7 @@ func Encode(c *Command, buf *bytes.Buffer) (*bytes.Buffer, error) {
 	startTime := util.CurrentTimeMillis()
 
 	makeCustomHeaderToNet(c)
-	headerBytes, err := jsonSerializer.encodeHeader(c)
+	headerBytes, err := defaultSerializer.encodeHeader(c)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +128,7 @@ func Decode(data []byte) (*Command, error) {
 
 	headerData := data[4 : headerLength+4]
 
-	c, err := jsonSerializer.decodeHeader(headerData)
+	c, err := defaultSerializer.decodeHeader(headerData)
 	if err != nil {
 		return nil, err
 	}
