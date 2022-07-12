@@ -29,7 +29,7 @@ func main() {
 
 		ctx := context.Background()
 		startTime := util.CurrentTimeMillis()
-		for i := 0; i < 150000; i++ {
+		for i := 0; i < 200; i++ {
 			// randomString := util.RandomString(100)
 			randomString := "abcdeftgy" + fmt.Sprintf("%d", i)
 			msg := &message.Message{
@@ -43,7 +43,7 @@ func main() {
 					return
 				}
 
-				// log.Infof("send result: %+v", result)
+				log.Infof("send result: %+v", result.MsgID)
 			})
 
 			// time.Sleep(1 * time.Second)
@@ -67,10 +67,12 @@ func main() {
 			if (delay1 > 1 || delay2 > 1) && value%100 == 0 {
 				log.Infof("延迟1: %d ms, 延迟2: %d ms, 收到消息: %+v", delay1, delay2, item)
 			}
+
+			log.Infof("收到消息 msg: %s", string(item.Body))
 		}
 	}
 
-	//pushConsumer.Start()
+	pushConsumer.Start()
 	time.Sleep(math.MaxInt64)
 
 }
